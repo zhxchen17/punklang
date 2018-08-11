@@ -1,0 +1,4 @@
+S src
+PKG core
+PKG llvm
+B _build/src
