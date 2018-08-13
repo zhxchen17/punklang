@@ -24,8 +24,7 @@ open Parser
 let white = [' ' '\t' '\n']+
 let digit = ['0'-'9']
 let int = '-'? digit+
-let letter = ['a'-'z' 'A'-'Z']
-let id = letter+
+let id = ['a'-'z' 'A'-'Z' '_']+
 
 (* The final section of the lexer definition defines how to parse a character
    stream into a token stream.  Each of the rules below has the form
@@ -50,6 +49,9 @@ rule read =
   | "}" { RBRACE }
   | "let" { LET }
   | "=" { ASSIGN }
+  | "[" { LBOX }
+  | "]" { RBOX }
+  | "struct" { STRUCT }
   (* | "let" { LET } *)
   (* | "="   { EQUALS } *)
   (* | "in"  { IN } *)

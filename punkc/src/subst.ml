@@ -1,6 +1,7 @@
 open Ast
 
 module V = Var
+module Option = Core.Option
 
 (* substXMain m s n l exp
  * if    |s| = n
@@ -13,8 +14,6 @@ let rec subst_kind_main m s n l k =
   | Ksing c -> Ksing (subst_con_main m s n l c)
   | Kpi (k0, k1) ->
     Kpi (subst_kind_main m s n l k0, subst_kind_main (m + 1) s n l k1)
-  | Ksigma (k0, k1) ->
-    Ksigma (subst_kind_main m s n l k0, subst_kind_main (m+1) s n l k1)
   | Kunit -> k
 
 and subst_con_main m s n l c =
@@ -26,6 +25,8 @@ and subst_con_main m s n l c =
       subst_con_main 0 [] 0 m (List.nth s (i - m))
     else
       Cvar (i - n + l)
+  | Capp (c0, c1) ->
+    Capp (subst_con_main m s n l c0, subst_con_main m s n l c1)
   | Clam (k, c) ->
     Clam (subst_kind_main m s n l k, subst_con_main (m + 1) s n l c)
   | Cunit -> c
@@ -36,6 +37,10 @@ and subst_con_main m s n l c =
   | Cnamed (v, Some c) -> Cnamed (v, Some (subst_con_main m s n l c))
   | Cref c -> Cref (subst_con_main m s n l c)
   | Cint -> c
+  | Cforall (k, c) ->
+    Cforall (subst_kind_main m s n l k, subst_con_main (m + 1) s n l c)
+  | Carray (c', x) ->
+    Carray (subst_con_main m s n l c', x)
 
 let rec subst_tcls_main m s n l t =
   match t with
@@ -58,12 +63,20 @@ let rec subst_expr_main m s n l e =
   | Eop (o, el) -> Eop (o, List.map (subst_expr_main m s n l) el)
   | Eapp (e, el) ->
     Eapp (subst_expr_main m s n l e, List.map (subst_expr_main m s n l) el)
-  | Etuple el -> Etuple (List.map (subst_expr_main m s n l) el)
+  | Etuple (x, el) ->
+    Etuple (Option.map x (List.map (subst_con_main m s n l)),
+            List.map (subst_expr_main m s n l) el)
+  | Ector (c, sel) ->
+    Ector (subst_con_main m s n l c,
+           List.map (fun (x, e) -> (x, subst_expr_main m s n l e)) sel)
   | Econ c -> Econ (subst_con_main m s n l c)
   | Eplam (k, t, e) ->
     Eplam (subst_kind_main m s n l k,
            subst_tcls_main m s n l t,
            subst_expr_main (m + 1) s n l e)
+  | Earray (c, el) ->
+    (* FIXME *)
+    Earray (None, List.map (subst_expr_main m s n l) el)
 
 and subst_stmt_main m s n l st =
   match st with

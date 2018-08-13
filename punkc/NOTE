@@ -1,0 +1,21 @@
+Swift
++ value witness table
++ ARC
++ COW
+- CSP
+- stack allocation
+
+Rust
++ stack allocation
++ explicit copy
+- OOP
+- GC
+- CSP
+
+Punk
+- OOP
++ explicit copy
++ stack allocation
++ value witness table
++ GC
++ CSP

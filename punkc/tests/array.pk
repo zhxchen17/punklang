@@ -1,0 +1,5 @@
+let y: int = 41;
+func foo(x: int): int {
+  let a: int[3] = [1, 2, 3];
+  return x + y;
+}

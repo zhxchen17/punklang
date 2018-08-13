@@ -1,0 +1,4 @@
+let y: int = 41;
+func foo(x: int): int {
+  return x + y;
+}

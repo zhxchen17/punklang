@@ -32,8 +32,11 @@ open Ast
 %token RETURN
 %token LBRACE
 %token RBRACE
+%token LBOX
+%token RBOX
 %token LET
 %token ASSIGN
+%token STRUCT
 (* %token LET *)
 (* %token EQUALS *)
 (* %token IN *)
@@ -85,12 +88,6 @@ open Ast
     that value in its action.  This is perhaps best understood by example... *)
 
 
-(* The first rule, named [prog], has just a single production.  It says
-   that a [prog] is an [expr] followed by [EOF] (which stands for end-of-file).
-   EOF is a token returned by the lexer when it reaches the end of the token stream.
-   The first part of the production, [e=expr], says to match an [expr] and bind
-   the resulting value to [e].  The action simply says to return that value [e]. *)
-
 prog:
   | s = list(stmt); EOF { s }
 	;
@@ -99,36 +96,13 @@ term:
   | e = expr; EOF { e }
   ;
 
-(* The second rule, named [expr], has productions for integers, variables,
-   addition expressions, let expressions, and parenthesized expressions.
-
-   - The first production, [i = INT], says to match an [INT] token, bind the
-     resulting OCaml [int] value to [i], and return AST node [Int i].
-
-   - The second production, [x = ID], says to match an [ID] token, bind the
-     resulting OCaml [string] value to [x], and return AST node [Var x].
-
-   - The third production, [e1 = expr; PLUS; e2 = expr], says to match
-     an [expr] followed by a [PLUS] token followed by another [expr].
-     The first [expr] is bound to [e1] and the second to [e2].  The AST
-     node returned is [Add(e1,e2)].
-
-   - The fourth production, [LET; x = ID; EQUALS; e1 = expr; IN; e2 = expr],
-     says to match a [LET] token followed by an [ID] token followed by
-     an [EQUALS] token followed by an [expr] followed by an [IN] token
-     followed by another [expr].  The string carried by the [ID] is bound
-     to [x], and the two expressions are bound to [e1] and [e2].  The AST
-     node returned is [Let(x,e1,e2)].
-
-   - The fifth production, [LPAREN; e = expr; RPAREN] says to match an
-     [LPAREN] token followed by an [expr] followed by an [RPAREN].  The
-     expression is bound to [e] and returned. *)
-
 expr:
 	| i = INT { Eint i }
 	| x = ID { Evar (-1, Some x) }
 	| e1 = expr; PLUS; e2 = expr { Eop (Add, [e1; e2]) }
 	| LPAREN; e = expr; RPAREN { e }
+  | LBOX; el = separated_list(COMMA, expr); RBOX { Earray (None, el) }
+  | c = ID; LBRACE; xel = separated_list(COMMA, separated_pair(ID, COLON, expr)); RBRACE { Ector (Cnamed ((-1, Some c), None), xel) }
 	;
 
 stmt:
@@ -136,11 +110,12 @@ stmt:
   | LBRACE; stmts = list(stmt); RBRACE { Sblk stmts }
   | RETURN; e = expr; SEMICOLON { Sret e }
   | LET; x = ID; COLON; ty = con; ASSIGN; e = expr SEMICOLON { Sdecl (Var.newvar (Some x), Some ty, e) }
+  | STRUCT; sname = ID; LBRACE; xcl = separated_list(COMMA, separated_pair(ID, COLON, con)); RBRACE { let v = Var.newvar (Some sname) in Sdecl (v, None, Econ (Cnamed (v, Some (Cprod (List.map snd xcl, Some (List.map fst xcl)))))) }
   ;
 
 con:
   | CINT { Cint }
   | LPAREN; cl = separated_list(COMMA, con) RPAREN { Cprod (cl, None) }
   | x = ID { Cnamed ((-1, Some x), None) }
+  | c = con; LBOX; len = option(expr); RBOX { Carray(c, len) }
   ;
-(* And that's the end of the grammar definition. *)

@@ -373,9 +373,4 @@ structure CheckDirect :> CHECK_DIRECT =
       and checkTerm ctx e t =
          equiv ctx (inferTerm ctx e) t Ktype
 
-
-
-      fun checkProgram t e =
-         checkTerm empty e t
-
    end
