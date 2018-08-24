@@ -21,6 +21,8 @@ let rec resolve_con env con =
   | Capp (c0, c1) -> Capp (resolve_con env c0, resolve_con env c1)
   | Cunit -> con
   | Cint -> con
+  | Cstring -> con
+  | Cbool -> con
   | Cvar _ -> con
   | Carray (c, x) -> Carray (resolve_con env c, x)
 
@@ -45,10 +47,10 @@ let rec resolve_expr env expr =
   | Evar (_, Some x) -> raise (Fatal "id is negative")
   | Eop (o, el) -> Eop (o, List.map (resolve_expr env) el)
   | Efunc (params, ret, s) ->
-    let update_id env ((id, s), _) =
+    let update_id env ((id, s), _, _) =
       Option.value_map s ~default:env ~f:(Env.add_id env id) in
     let env' = List.fold_left update_id env params in
-    Efunc (List.map (fun (x, c) -> (x, resolve_con env c)) params,
+    Efunc (List.map (fun (x, m, c) -> (x, m, resolve_con env c)) params,
            resolve_con env ret,
            resolve_stmt env' s)
   | Etuple (x, el) ->
@@ -63,10 +65,13 @@ let rec resolve_expr env expr =
   | Eapp (e, params) ->
     Eapp (resolve_expr env e, List.map (resolve_expr env) params)
   | Eint _ -> expr
+  | Estring _ -> expr
+  | Ebool _ -> expr
   | Evar (_, None) -> expr
   | Earray (None, el) ->
     Earray (None,  List.map (resolve_expr env) el)
   | Earray (Some _, _) -> raise (Fatal "assuming untyped array literal")
+  | Efield (e, i) -> Efield (resolve_expr env e, i)
 
 and resolve_stmt env stmt =
   match stmt with
@@ -74,9 +79,9 @@ and resolve_stmt env stmt =
   | Sblk sl ->
     let update_id (env, sl) s =
       match s with
-      | Sdecl ((id, Some x), _, e) when id >= 0 ->
+      | Sdecl ((id, Some x), _, _, e) when id >= 0 ->
         (Env.add_id env id x, sl @ [resolve_stmt env s])
-      | Sdecl ((id, _), _, _) when id < 0 -> raise (Fatal "id is negative")
+      | Sdecl ((id, _), _, _, _) when id < 0 -> raise (Fatal "id is negative")
       | _ -> (env, sl @ [resolve_stmt env s]) in
     let _, sl' = List.fold_left update_id (env, []) sl in
     Sblk sl'
@@ -84,7 +89,7 @@ and resolve_stmt env stmt =
   | Sif (e, s0, s1) ->
     Sif (resolve_expr env e, resolve_stmt env s0, resolve_stmt env s1)
   | Swhile (e, s) -> Swhile (resolve_expr env e, resolve_stmt env s)
-  | Sdecl (v, Some c, e) ->
-    Sdecl (v, Some (resolve_con env c), resolve_expr env e)
-  | Sdecl (v, None, e) -> Sdecl (v, None, resolve_expr env e)
-  | Sasgn (v, e) -> Sasgn (v, resolve_expr env e)
+  | Sdecl (v, m, Some c, e) ->
+    Sdecl (v, m, Some (resolve_con env c), resolve_expr env e)
+  | Sdecl (v, m, None, e) -> Sdecl (v, m, None, resolve_expr env e)
+  | Sasgn (p, e) -> Sasgn (resolve_expr env p, resolve_expr env e)

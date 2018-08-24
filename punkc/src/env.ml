@@ -10,6 +10,8 @@ type context = { ksize: int; kctx: kind list; tctx: (int * con) IntMap.t }
 type env = { var_id_map: int StringMap.t;
              ctx: context;
              is_top: bool;
+             mut_set: (int, unit) Hashtbl.t;
+             elab_con_map: (int, con) Hashtbl.t;
              persistent_set: (int, unit) Hashtbl.t }
 
 let empty_ctx () = { ksize = 0; kctx = []; tctx = IntMap.empty }
@@ -17,6 +19,8 @@ let empty_ctx () = { ksize = 0; kctx = []; tctx = IntMap.empty }
 let empty_env () = { var_id_map = StringMap.empty;
                      ctx = empty_ctx ();
                      is_top = true;
+                     mut_set = Hashtbl.create table_size;
+                     elab_con_map = Hashtbl.create table_size;
                      persistent_set = Hashtbl.create table_size }
 
 let add_id env id name =

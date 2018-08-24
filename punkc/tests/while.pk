@@ -1,0 +1,13 @@
+let y: int = 41;
+
+func foo(x: int): int {
+  var i: int = 0;
+  while (i < 5) {
+    printf ["%d", i];
+    i = i + 1;
+  }
+  printf ["\n"];
+  return x + y;
+}
+
+foo(1);

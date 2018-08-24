@@ -18,6 +18,8 @@ let rec natural_kind ctx c =
     end
   | Cforall _ -> Ktype
   | Carray _ -> Ktype
+  | Cstring -> Ktype
+  | Cbool -> Ktype
   | _ -> raise (TypeError "natural_kind")
 
 let rec whreduce c =
@@ -77,6 +79,8 @@ and equiv_path ctx c0 c1 =
     equiv ctx c0' c1' Ktype;
     Ktype
   | (Cint, Cint) -> Ktype
+  | (Cstring, Cstring) -> Ktype
+  | (Cbool, Cbool) -> Ktype
   | (Cunit, Cunit) -> Ktype
   | (Carray (c0', l0), Carray (c1', l1)) ->
     equiv ctx c0' c1' Ktype;

@@ -7,6 +7,7 @@
 
 %{
 open Ast
+module Option = Core.Option
 %}
 
 (* The next section of the grammar definition, called the *declarations*,
@@ -21,13 +22,25 @@ open Ast
 
 %token <int> INT
 %token <string> ID
+%token <string> STRING
+%token PRINTF
 %token PLUS
+%token LESS
 %token LPAREN
 %token RPAREN
+%token VAR
 %token CINT
+%token CSTRING
+%token CBOOL
+%token TRUE
+%token FALSE
+%token IF
+%token WHILE
+%token ELSE
 %token FUNC
 %token COLON
 %token COMMA
+%token DOT
 %token SEMICOLON
 %token RETURN
 %token LBRACE
@@ -37,9 +50,6 @@ open Ast
 %token LET
 %token ASSIGN
 %token STRUCT
-(* %token LET *)
-(* %token EQUALS *)
-(* %token IN *)
 %token EOF
 
 (* After declaring the tokens, we have to provide some additional information
@@ -55,6 +65,10 @@ open Ast
 
 (* %nonassoc IN *)
 %left PLUS
+%left LESS
+%left DOT
+%nonassoc LBOX
+%nonassoc LPAREN
 
 (* After declaring associativity and precedence, we need to declare what
    the starting point is for parsing the language.  The following
@@ -98,23 +112,42 @@ term:
 
 expr:
 	| i = INT { Eint i }
+  | s = STRING { Estring s }
+  | TRUE { Ebool true }
+  | FALSE { Ebool false }
 	| x = ID { Evar (-1, Some x) }
-	| e1 = expr; PLUS; e2 = expr { Eop (Add, [e1; e2]) }
+	| e0 = expr; PLUS; e1 = expr { Eop (Add, [e0; e1]) }
+  | e0 = expr; LESS; e1 = expr { Eop (Lt, [e0; e1]) }
+  | PRINTF; LBOX; el = separated_list(COMMA, expr); RBOX { Eop (Cprintf, el) }
 	| LPAREN; e = expr; RPAREN { e }
   | LBOX; el = separated_list(COMMA, expr); RBOX { Earray (None, el) }
   | c = ID; LBRACE; xel = separated_list(COMMA, separated_pair(ID, COLON, expr)); RBRACE { Ector (Cnamed ((-1, Some c), None), xel) }
+  | caller = expr; LPAREN; args = separated_list(COMMA, expr); RPAREN { Eapp(caller, args) }
+  | e0 = expr; DOT; field = ID { Efield (e0, (-1, Some field)) }
+  | e = expr; LBOX; i = expr; RBOX { Eop (Idx, [e; i]) }
 	;
 
+%inline param:
+  | mut = option(VAR); x = ID; COLON; ty = con { (Var.newvar (Some x), (if Option.is_some mut then Mutable else Immutable), ty) }
+
 stmt:
-  | FUNC; fname = ID; LPAREN; x = ID; COLON; ty = con; RPAREN; COLON; tr = con; body = stmt { Sdecl (Var.newvar (Some fname), None, Efunc ([Var.newvar (Some x), ty], tr, body)) }
+  | FUNC; fname = ID; LPAREN; params = separated_list(COMMA, param); RPAREN; COLON; tr = con; LBRACE; sl = list(stmt); RBRACE { Sdecl (Var.newvar (Some fname), Immutable, None, Efunc (params, tr, Sblk sl)) }
   | LBRACE; stmts = list(stmt); RBRACE { Sblk stmts }
   | RETURN; e = expr; SEMICOLON { Sret e }
-  | LET; x = ID; COLON; ty = con; ASSIGN; e = expr SEMICOLON { Sdecl (Var.newvar (Some x), Some ty, e) }
-  | STRUCT; sname = ID; LBRACE; xcl = separated_list(COMMA, separated_pair(ID, COLON, con)); RBRACE { let v = Var.newvar (Some sname) in Sdecl (v, None, Econ (Cnamed (v, Some (Cprod (List.map snd xcl, Some (List.map fst xcl)))))) }
+  | LET; x = ID; COLON; ty = con; ASSIGN; e = expr; SEMICOLON { Sdecl (Var.newvar (Some x), Immutable, Some ty, e) }
+  | VAR; x = ID; COLON; ty = con; ASSIGN; e = expr; SEMICOLON { Sdecl (Var.newvar (Some x), Mutable, Some ty, e) }
+  | STRUCT; sname = ID; LBRACE; xcl = separated_list(COMMA, separated_pair(ID, COLON, con)); RBRACE { let v = Var.newvar (Some sname) in Sdecl (v, Immutable, None, Econ (Cnamed (v, Some (Cprod (List.map snd xcl, Some (List.map fst xcl)))))) }
+  | e = expr; SEMICOLON { Sexpr e }
+  | lval = expr; ASSIGN; e = expr; SEMICOLON { Sasgn(lval, e) }
+  | IF; LPAREN; e = expr; RPAREN; LBRACE; sl0 = list(stmt); RBRACE { Sif (e, Sblk sl0, Sblk []) }
+  | IF; LPAREN; e = expr; RPAREN; LBRACE; sl0 = list(stmt); RBRACE; ELSE; LBRACE; sl1 = list(stmt); RBRACE { Sif (e, Sblk sl0, Sblk sl1) }
+  | WHILE; LPAREN; e = expr; RPAREN; LBRACE; sl = list(stmt); RBRACE { Swhile (e, Sblk sl) }
   ;
 
 con:
   | CINT { Cint }
+  | CSTRING { Cstring }
+  | CBOOL { Cbool }
   | LPAREN; cl = separated_list(COMMA, con) RPAREN { Cprod (cl, None) }
   | x = ID { Cnamed ((-1, Some x), None) }
   | c = con; LBOX; len = option(expr); RBOX { Carray(c, len) }

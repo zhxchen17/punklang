@@ -7,7 +7,7 @@ example: example.byte
 test: test.byte
 
 %.byte:
-	ocamlbuild -I src -r -use-ocamlfind -pkgs core,llvm,llvm.analysis,oUnit -tags thread,debug -use-menhir $@
+	ocamlbuild -I src -r -use-ocamlfind -pkgs core,llvm,llvm.analysis,oUnit -tags thread -use-menhir $@
 	mv $@ $*
 
 clean:

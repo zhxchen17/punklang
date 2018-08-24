@@ -39,7 +39,7 @@ and infer_con ctx c =
   | Cref c' ->
     check_con ctx c' Ktype;
     Ksing c
-  | Cint -> Ksing c
+  | Cint | Cstring | Cbool -> Ksing c
   | Cnamed (v, Some c') -> Ksing c'
   | Cnamed (v, None) -> raise (TypeError "infer_con")
   | Carray (c', _) ->
@@ -55,11 +55,12 @@ let whnf_annot ctx t =
 let rec infer_expr ctx e =
   match e with
   | Evar (id, _) -> (Env.lookup_type ctx id, e)
-  | Efunc (vcl, cr, s) ->
-    List.iter (fun (v, dom) -> check_con ctx dom Ktype) vcl;
+  | Efunc (vmcl, cr, s) ->
+    List.iter (fun (v, _, dom) -> check_con ctx dom Ktype) vmcl;
     check_con ctx cr Ktype;
-    let s' = check_stmt ctx s cr in
-    (Carrow ((List.map (fun (_, c) -> c) vcl), cr), Efunc (vcl, cr, s'))
+    let (c', s') = infer_stmt ctx s in
+    equiv ctx c' cr Ktype;
+    (Carrow ((List.map (fun (_, _, c) -> c) vmcl), cr), Efunc (vmcl, cr, s'))
   | Eapp (e', params) ->
     begin match infer_expr_whnf ctx e' with
       | (Carrow (dom, cod), e'') ->
@@ -76,8 +77,45 @@ let rec infer_expr ctx e =
     let cl = List.map fst cel in
     (Cprod (cl, None), Etuple (Some cl, List.map snd cel))
   | Eint _ -> (Cint, e)
+  | Estring _ -> (Cstring, e)
+  | Ebool _ -> (Cbool, e)
   | Econ c -> (c, e)
-  | Eop (o, el) -> (Cint, e) (* TODO *)
+  | Eop (o, el) ->
+    (* TODO *)
+    begin match o with
+      | Add -> (Cint, e)
+      | Cprintf ->
+        let cel' = List.map (infer_expr ctx) el in
+        (Cunit, Eop (o, List.map snd cel'))
+      | Lt -> (Cbool, e)
+      | Idx ->
+        begin match el with
+          | [hd; i] ->
+            let (c', e') = infer_expr ctx hd in
+            begin match c' with
+              | Carray (c'', _) -> (c'', e')
+              | _ -> raise (Fatal "indexing from nonarray is not supported yet")
+            end
+          | _ -> raise (Fatal "indexing operator must have exactly two oprands")
+        end
+    end
+  | Efield (e', (id, Some f)) ->
+    assert (id = -1);
+    begin match infer_expr ctx e' with
+      | (Cnamed (_, Some (Cprod (cl, Some sl))), e'') ->
+        let rec find x lst =
+          match lst with
+          | [] -> raise (Error "field name not found")
+          | h::t -> if x = h then 0 else 1 + find x t in
+        let i = find f sl in
+        let c' = List.nth cl i in
+        (c', Efield (e'', (i, Some f)))
+      | (Cnamed (_, None), _) -> raise (Error "opaque struct")
+      | (Cnamed (_, Some c'), _) -> raise (Error (string_of_con c'))
+      | (c, _) -> raise (Error ("unable to access field " ^ f ^ (string_of_con c)))
+    end
+  | Efield (e', (id, None)) ->
+    raise (Fatal "field must have a name to be accessed")
   | Ector (Cnamed ((id, _) as n, _), sel) ->
     begin match Env.lookup_type ctx id with
       | Cnamed (v, Some (Cprod (cl, Some sl))) as c
@@ -94,7 +132,13 @@ let rec infer_expr ctx e =
             let i, tl = remove s' sel in i::(reorder next tl)
           | [] -> []
         in
-        (c, Ector (c, reorder sl sel))
+        let sel' = reorder sl sel in
+        List.iteri
+          (fun i (s, e) ->
+             let (c, e) = infer_expr ctx e in
+             equiv ctx c (List.nth cl i) Ktype;) sel';
+        (c, Ector (c, sel'))
+
       | _ -> raise (Error "illegal constructor")
     end
   | Ector _ -> raise (Fatal "illegal constructor")
@@ -119,7 +163,7 @@ and infer_stmt ctx s =
     (c, Sblk [s''])
   | Sblk (hd::next) ->
     begin match hd with
-      | Sdecl ((id, _), _, e) ->
+      | Sdecl ((id, _), _, _, e) ->
         let hd' = check_stmt ctx hd Cunit in
         let (c, _) = infer_expr ctx e (* TODO recursive definition *) in
         begin match infer_stmt (Env.extend_type ctx id c) (Sblk next) with
@@ -135,21 +179,21 @@ and infer_stmt ctx s =
         end
     end
   | Sif (e, s0, s1) ->
-    let e' = check_expr ctx e Cint in
+    let e' = check_expr ctx e Cbool in
     let (c0', s0') = infer_stmt ctx s0 in
     let (c1', s1') = infer_stmt ctx s1 in
     equiv ctx c0' c1' Ktype;
     (c0', Sif (e', s0', s1'))
   | Swhile (e, s') ->
-    let e' = check_expr ctx e Cint in
+    let e' = check_expr ctx e Cbool in
     let (c, s'') = infer_stmt ctx s' in
     (c, Swhile (e', s''))
-  | Sdecl (v, Some c, e) ->
+  | Sdecl (v, m, Some c, e) ->
     let e' = check_expr ctx e c in
-    (Cunit, Sdecl (v, Some c, e'))
-  | Sdecl (v, None, e) ->
-    let (_, e') = infer_expr ctx e in
-    (Cunit, Sdecl (v, None, e'))
+    (Cunit, Sdecl (v, m, Some c, e'))
+  | Sdecl (v, m, None, e) ->
+    let (c', e') = infer_expr ctx e in
+    (Cunit, Sdecl (v, m, Some c', e'))
   | Sasgn (x, e) ->
     (* TODO *)
     let (_, e') = infer_expr ctx e in
@@ -176,20 +220,20 @@ and check_stmt ctx s c =
     let sl' = List.map (fun s -> check_stmt ctx s c) sl in
     Sblk sl'
   | Sif (e, s0, s1) ->
-    let e' = check_expr ctx e Cint in
+    let e' = check_expr ctx e Cbool in
     let s0' = check_stmt ctx s0 c in
     let s1' = check_stmt ctx s1 c in
     Sif (e', s0', s1')
   | Swhile (e, s') ->
-    let e' = check_expr ctx e Cint in
+    let e' = check_expr ctx e Cbool in
     let s'' = check_stmt ctx s' c in
     (Swhile (e', s''))
-  | Sdecl (v, Some c, e) ->
+  | Sdecl (v, m, Some c, e) ->
     let e' = check_expr ctx e c in
-    Sdecl (v, Some c, e')
-  | Sdecl (v, None, e) ->
-    let (_, e') = infer_expr ctx e in
-    Sdecl (v, None, e')
+    Sdecl (v, m, Some c, e')
+  | Sdecl (v, m, None, e) ->
+    let (c', e') = infer_expr ctx e in
+    Sdecl (v, m, Some c', e')
   | Sasgn (x, e) ->
     (* TODO *)
     let (_, e') = infer_expr ctx e in

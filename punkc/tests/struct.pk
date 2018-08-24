@@ -6,6 +6,9 @@ struct pair_t {
 }
 
 func foo(x: int): int {
-  let z: pair_t = pair_t { y: 1, x: 1 };
+  let z: pair_t = pair_t { y: 1, x: 0 };
+  printf ["%d, %d\n", z.x, z.y];
   return x + y;
 }
+
+foo(1);

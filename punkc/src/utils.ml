@@ -4,8 +4,10 @@ exception Fatal of string
 exception Error of string
 exception TypeError of string
 exception EquivTypeError of string * string * string
+exception SyntaxError of string
 
-let table_size = 30
+let table_size = 42
+let buf_size = 17
 
 let rec string_of_con c =
   match c with
@@ -21,4 +23,6 @@ let rec string_of_con c =
   | Cunit -> "Cunit"
   | Cnamed ((id, _), _) -> "Cnamed (" ^ (string_of_int id) ^ ")"
   | Carray (c, _) -> "(Carray " ^ (string_of_con c) ^ ")"
-  | _ -> raise (Fatal "Unimplemented constructor")
+  | Cstring -> "Cstring"
+  | Cbool -> "Cbool"
+  | _ -> raise (Fatal "unimplemented constructor")

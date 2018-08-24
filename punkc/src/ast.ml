@@ -1,5 +1,12 @@
+type mut =
+  | Mutable
+  | Immutable
+
 type op =
   | Add
+  | Cprintf
+  | Lt
+  | Idx
 
 type kind =
     Ktype
@@ -10,6 +17,8 @@ type kind =
 
 and con =
     Cint
+  | Cstring
+  | Cbool
   | Cvar of int
   | Cprod of con list * string list option
   | Carrow of con list * con
@@ -30,14 +39,17 @@ and tcls =
 and expr =
     Evar of Var.id
   | Eint of int
+  | Estring of string
+  | Ebool of bool
   | Eop of op * expr list
-  | Efunc of (Var.id * con) list * con * stmt
+  | Efunc of (Var.id * mut * con) list * con * stmt
   | Eapp of expr * expr list
   | Etuple of con list option * expr list
   | Ector of con * (string * expr) list
   | Econ of con (* for decls only *)
   | Eplam of kind * tcls * expr
   | Earray of con option * expr list
+  | Efield of expr * Var.id
   (* | Eproj of expr * int *)
   (* | Epapp of expr * con *)
   (* | Epack of con * expr * con *)
@@ -49,5 +61,5 @@ and stmt =
   | Sret of expr
   | Sif of expr * stmt * stmt
   | Swhile of expr * stmt
-  | Sdecl of Var.id * con option * expr
-  | Sasgn of Var.id * expr
+  | Sdecl of Var.id * mut * con option * expr
+  | Sasgn of expr * expr

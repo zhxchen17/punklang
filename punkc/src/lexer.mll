@@ -4,6 +4,7 @@
 
 {
 open Parser
+open Utils
 }
 
 (* The second section of the lexer definition defines *identifiers*
@@ -40,11 +41,21 @@ rule read =
   | "("   { LPAREN }
   | ")"   { RPAREN }
   | "func" { FUNC }
+  | "var" { VAR }
   | ":" { COLON }
   | "," { COMMA }
+  | "." { DOT }
   | "int" { CINT }
+  | "string" { CSTRING }
+  | "bool" { CBOOL }
+  | "true" { TRUE }
+  | "false" { FALSE }
+  | "if" { IF }
+  | "while" { WHILE }
+  | "else" { ELSE }
   | ";" { SEMICOLON }
   | "return" { RETURN }
+  | "<" { LESS }
   | "{" { LBRACE }
   | "}" { RBRACE }
   | "let" { LET }
@@ -52,11 +63,28 @@ rule read =
   | "[" { LBOX }
   | "]" { RBOX }
   | "struct" { STRUCT }
-  (* | "let" { LET } *)
-  (* | "="   { EQUALS } *)
-  (* | "in"  { IN } *)
+  | "printf" { PRINTF }
+  | '"' { read_string (Buffer.create buf_size) lexbuf }
   | id    { ID (Lexing.lexeme lexbuf) }
   | int   { INT (int_of_string (Lexing.lexeme lexbuf)) }
   | eof   { EOF }
+
+and read_string buf =
+  parse
+  | '"'       { STRING (Buffer.contents buf) }
+  | '\\' '/'  { Buffer.add_char buf '/'; read_string buf lexbuf }
+  | '\\' '\\' { Buffer.add_char buf '\\'; read_string buf lexbuf }
+  | '\\' 'b'  { Buffer.add_char buf '\b'; read_string buf lexbuf }
+  | '\\' 'f'  { Buffer.add_char buf '\012'; read_string buf lexbuf }
+  | '\\' 'n'  { Buffer.add_char buf '\n'; read_string buf lexbuf }
+  | '\\' 'r'  { Buffer.add_char buf '\r'; read_string buf lexbuf }
+  | '\\' 't'  { Buffer.add_char buf '\t'; read_string buf lexbuf }
+  | [^ '"' '\\']+ {
+      Buffer.add_string buf (Lexing.lexeme lexbuf);
+      read_string buf lexbuf
+    }
+  | _ { raise (SyntaxError
+                 ("Illegal string character: " ^ Lexing.lexeme lexbuf)) }
+  | eof { raise (SyntaxError ("String is not terminated")) }
 
 (* And that's the end of the lexer definition. *)
