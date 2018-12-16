@@ -1,6 +1,5 @@
 open Ast
 open Utils
-module Option = Core.Option
 
 let rec elab_con env con =
   match con with

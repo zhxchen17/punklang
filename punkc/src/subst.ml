@@ -1,7 +1,6 @@
 open Ast
 
 module V = Var
-module Option = Core.Option
 
 (* substXMain m s n l exp
  * if    |s| = n

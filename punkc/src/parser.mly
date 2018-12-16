@@ -7,7 +7,6 @@
 
 %{
 open Ast
-module Option = Core.Option
 %}
 
 (* The next section of the grammar definition, called the *declarations*,
