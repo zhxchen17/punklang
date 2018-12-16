@@ -1,0 +1,3 @@
+package a.b.c;
+import E from d;
+load F from "file" as Type;
