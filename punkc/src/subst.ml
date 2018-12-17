@@ -43,13 +43,13 @@ and subst_con_main m s n l c =
 
 let rec subst_iface_main m s n l t =
   match t with
-  | Tplam (k, t0, t1) ->
-    Tplam (subst_kind_main m s n l k,
+  | Iplam (k, t0, t1) ->
+    Iplam (subst_kind_main m s n l k,
            subst_iface_main m s n l t0,
            subst_iface_main (m + 1) s n l t1)
-  | Tvoid -> t
-  | Tmthds (name, cl, c) ->
-    Tmthds (name, List.map (subst_con_main m s n l) cl, subst_con_main m s n l c)
+  | Ivoid -> t
+  | Imthds (name, cl, c) ->
+    Imthds (name, List.map (subst_con_main m s n l) cl, subst_con_main m s n l c)
 
 let rec subst_expr_main m s n l e =
   match e with

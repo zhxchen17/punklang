@@ -34,11 +34,11 @@ and elab_kind env kind =
 
 and elab_iface env iface =
   match iface with
-  | Tplam (k, t0, t1) ->
-    Tplam (elab_kind env k, elab_iface env t0, elab_iface env t1)
-  | Tmthds (s, cpl, cr) ->
-    Tmthds (s, List.map (elab_con env) cpl, elab_con env cr)
-  | Tvoid -> Tvoid
+  | Iplam (k, t0, t1) ->
+    Iplam (elab_kind env k, elab_iface env t0, elab_iface env t1)
+  | Imthds (s, cpl, cr) ->
+    Imthds (s, List.map (elab_con env) cpl, elab_con env cr)
+  | Ivoid -> Ivoid
 
 let rec elab_expr env expr =
   match expr with

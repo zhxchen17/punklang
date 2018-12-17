@@ -34,11 +34,11 @@ and resolve_kind env kind =
 
 and resolve_iface env iface =
   match iface with
-  | Tplam (k, t0, t1) ->
-    Tplam (resolve_kind env k, resolve_iface env t0, resolve_iface env t1)
-  | Tmthds (s, cpl, cr) ->
-    Tmthds (s, List.map (resolve_con env) cpl, resolve_con env cr)
-  | Tvoid -> Tvoid
+  | Iplam (k, t0, t1) ->
+    Iplam (resolve_kind env k, resolve_iface env t0, resolve_iface env t1)
+  | Imthds (s, cpl, cr) ->
+    Imthds (s, List.map (resolve_con env) cpl, resolve_con env cr)
+  | Ivoid -> Ivoid
 
 let rec resolve_expr env expr =
   match expr with

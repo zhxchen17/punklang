@@ -32,9 +32,9 @@ and con =
   | Cunit
 
 and iface =
-    Tplam of kind * iface * iface (* binds *)
-  | Tmthds of string * con list * con
-  | Tvoid
+    Iplam of kind * iface * iface (* binds *)
+  | Imthds of string * con list * con
+  | Ivoid
 
 and expr =
     Evar of Var.id
