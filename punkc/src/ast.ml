@@ -31,8 +31,8 @@ and con =
   | Cnamed of Var.id * con option
   | Cunit
 
-and tcls =
-    Tplam of kind * tcls * tcls (* binds *)
+and iface =
+    Tplam of kind * iface * iface (* binds *)
   | Tmthds of string * con list * con
   | Tvoid
 
@@ -47,7 +47,7 @@ and expr =
   | Etuple of con list option * expr list
   | Ector of con * (string * expr) list
   | Econ of con (* for decls only *)
-  | Eplam of kind * tcls * expr
+  | Eplam of kind * iface * expr
   | Earray of con option * expr list
   | Efield of expr * Var.id
   (* | Eproj of expr * int *)

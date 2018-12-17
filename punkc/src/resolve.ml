@@ -32,10 +32,10 @@ and resolve_kind env kind =
   | Kunit -> kind
   | Ktype -> kind
 
-and resolve_tcls env tcls =
-  match tcls with
+and resolve_iface env iface =
+  match iface with
   | Tplam (k, t0, t1) ->
-    Tplam (resolve_kind env k, resolve_tcls env t0, resolve_tcls env t1)
+    Tplam (resolve_kind env k, resolve_iface env t0, resolve_iface env t1)
   | Tmthds (s, cpl, cr) ->
     Tmthds (s, List.map (resolve_con env) cpl, resolve_con env cr)
   | Tvoid -> Tvoid
@@ -60,7 +60,7 @@ let rec resolve_expr env expr =
            List.map (fun (s, e) -> (s, resolve_expr env e)) sel)
   | Econ c -> Econ (resolve_con env c)
   | Eplam (k, t, e) ->
-    Eplam (resolve_kind env k, resolve_tcls env t, resolve_expr env e)
+    Eplam (resolve_kind env k, resolve_iface env t, resolve_expr env e)
   | Eapp (e, params) ->
     Eapp (resolve_expr env e, List.map (resolve_expr env) params)
   | Eint _ -> expr

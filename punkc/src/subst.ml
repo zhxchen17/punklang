@@ -41,12 +41,12 @@ and subst_con_main m s n l c =
   | Carray (c', x) ->
     Carray (subst_con_main m s n l c', x)
 
-let rec subst_tcls_main m s n l t =
+let rec subst_iface_main m s n l t =
   match t with
   | Tplam (k, t0, t1) ->
     Tplam (subst_kind_main m s n l k,
-           subst_tcls_main m s n l t0,
-           subst_tcls_main (m + 1) s n l t1)
+           subst_iface_main m s n l t0,
+           subst_iface_main (m + 1) s n l t1)
   | Tvoid -> t
   | Tmthds (name, cl, c) ->
     Tmthds (name, List.map (subst_con_main m s n l) cl, subst_con_main m s n l c)
@@ -73,7 +73,7 @@ let rec subst_expr_main m s n l e =
   | Econ c -> Econ (subst_con_main m s n l c)
   | Eplam (k, t, e) ->
     Eplam (subst_kind_main m s n l k,
-           subst_tcls_main m s n l t,
+           subst_iface_main m s n l t,
            subst_expr_main (m + 1) s n l e)
   | Earray (c, el) ->
     (* FIXME *)

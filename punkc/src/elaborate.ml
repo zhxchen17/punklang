@@ -32,10 +32,10 @@ and elab_kind env kind =
   | Kunit -> kind
   | Ktype -> kind
 
-and elab_tcls env tcls =
-  match tcls with
+and elab_iface env iface =
+  match iface with
   | Tplam (k, t0, t1) ->
-    Tplam (elab_kind env k, elab_tcls env t0, elab_tcls env t1)
+    Tplam (elab_kind env k, elab_iface env t0, elab_iface env t1)
   | Tmthds (s, cpl, cr) ->
     Tmthds (s, List.map (elab_con env) cpl, elab_con env cr)
   | Tvoid -> Tvoid
@@ -56,7 +56,7 @@ let rec elab_expr env expr =
            List.map (fun (s, e) -> (s, elab_expr env e)) sel)
   | Econ c -> Econ (elab_con env c)
   | Eplam (k, t, e) ->
-    Eplam (elab_kind env k, elab_tcls env t, elab_expr env e)
+    Eplam (elab_kind env k, elab_iface env t, elab_expr env e)
   | Eapp (e, params) ->
     Eapp (elab_expr env e, List.map (elab_expr env) params)
   | Eint _ -> expr
