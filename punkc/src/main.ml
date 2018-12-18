@@ -1,4 +1,4 @@
-open Ast
+open Tir
 open Utils
 open Llvm
 
@@ -15,12 +15,12 @@ let parse_expr s =
 
 class package = object (self)
   val mutable env = Env.empty_env ()
-  val mutable prog: stmt list = []
   method private extract_id stmt =
     match stmt with
-    | Sdecl ((id, Some name), _, _, _) when id >= 0 ->
+    | Tstmt_decl ((id, Some name), _, _, _) when id >= 0 ->
       env <- Env.add_id env id name
-    | Sdecl ((id, _), _, _, _) when id < 0 -> raise (Fatal "id is negative")
+    | Tstmt_decl ((id, _), _, _, _) when id < 0 ->
+      raise (Fatal "id is negative")
     | _ -> ()
   method print_defs () =
     Env.StringMap.iter
@@ -31,15 +31,15 @@ class package = object (self)
     List.iter self#extract_id stmt_list;
     stmt_list
   method resolve prog =
-    match Resolve.resolve_stmt env (Sblk prog) with
-    | Sblk sl -> sl
+    match Resolve.resolve_stmt env (Tstmt_blk prog) with
+    | Tstmt_blk sl -> sl
     | _ -> raise (Fatal "failed to unpack resolved program")
   method elaborate prog =
-    match Elaborate.elab_stmt env (Sblk prog) with
-    | Sblk sl -> sl
+    match Elaborate.elab_stmt env (Tstmt_blk prog) with
+    | Tstmt_blk sl -> sl
     | _ -> raise (Fatal "failed to unpack elaborated program")
   method type_check prog =
-    match Check.infer_stmt env.ctx (Sblk prog) with
+    match Check.infer_stmt env.ctx (Tstmt_blk prog) with
     | (Cunit, Sblk sl) -> sl
     | _ -> raise (Fatal "failed to unpack type checked program")
   method analyze prog =

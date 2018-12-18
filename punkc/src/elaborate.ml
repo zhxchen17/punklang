@@ -1,85 +1,85 @@
-open Ast
+open Tir
 open Utils
 
 let rec elab_con env con =
   match con with
-  | Cprod (cl, ll) -> Cprod (List.map (elab_con env) cl, ll)
-  | Carrow (cpl, cr) ->
-    Carrow (List.map (elab_con env) cpl, elab_con env cr)
-  | Clam (k, c) -> Clam (elab_kind env k, elab_con env c)
-  | Cref c -> Cref (elab_con env c)
-  | Cnamed (v, Some c) -> Cnamed (v, Some (elab_con env c))
-  | Cnamed ((id, x), None) ->
+  | Tcon_prod (cl, ll) -> Tcon_prod (List.map (elab_con env) cl, ll)
+  | Tcon_arrow (cpl, cr) ->
+    Tcon_arrow (List.map (elab_con env) cpl, elab_con env cr)
+  | Tcon_lam (k, c) -> Tcon_lam (elab_kind env k, elab_con env c)
+  | Tcon_ref c -> Tcon_ref (elab_con env c)
+  | Tcon_named (v, Some c) -> Tcon_named (v, Some (elab_con env c))
+  | Tcon_named ((id, x), None) ->
     begin match Hashtbl.find env.Env.elab_con_map id with
-      | Cnamed ((i, _), Some c') ->
+      | Tcon_named ((i, _), Some c') ->
         assert (i = id);
-        Cnamed ((id, x), Some c')
+        Tcon_named ((id, x), Some c')
       | _ -> raise (Fatal "type name mapped to anonymous type")
     end
-  | Cforall (k, c) -> Cforall (elab_kind env k, elab_con env c)
-  | Capp (c0, c1) -> Capp (elab_con env c0, elab_con env c1)
-  | Cunit -> con
-  | Cint -> con
-  | Cstring -> con
-  | Cbool -> con
-  | Cvar _ -> con
-  | Carray (c, x) -> Carray (elab_con env c, x)
+  | Tcon_forall (k, c) -> Tcon_forall (elab_kind env k, elab_con env c)
+  | Tcon_app (c0, c1) -> Tcon_app (elab_con env c0, elab_con env c1)
+  | Tcon_unit -> con
+  | Tcon_int -> con
+  | Tcon_string -> con
+  | Tcon_bool -> con
+  | Tcon_var _ -> con
+  | Tcon_array (c, x) -> Tcon_array (elab_con env c, x)
 
 and elab_kind env kind =
   match kind with
-  | Ksing c -> Ksing (elab_con env c)
-  | Kpi (k0, k1) -> Kpi (elab_kind env k0, elab_kind env k1)
-  | Kunit -> kind
-  | Ktype -> kind
+  | Tkind_sing c -> Tkind_sing (elab_con env c)
+  | Tkind_pi (k0, k1) -> Tkind_pi (elab_kind env k0, elab_kind env k1)
+  | Tkind_unit -> kind
+  | Tkind_type -> kind
 
 and elab_iface env iface =
   match iface with
-  | Iplam (k, t0, t1) ->
-    Iplam (elab_kind env k, elab_iface env t0, elab_iface env t1)
-  | Imthds (s, cpl, cr) ->
-    Imthds (s, List.map (elab_con env) cpl, elab_con env cr)
-  | Ivoid -> Ivoid
+  | Tiface_plam (k, t0, t1) ->
+    Tiface_plam (elab_kind env k, elab_iface env t0, elab_iface env t1)
+  | Tiface_mthds (s, cpl, cr) ->
+    Tiface_mthds (s, List.map (elab_con env) cpl, elab_con env cr)
+  | Tiface_void -> Tiface_void
 
 let rec elab_expr env expr =
   match expr with
-  | Evar _ -> expr
-  | Eop (o, el) -> Eop (o, List.map (elab_expr env) el)
-  | Efunc (params, ret, s) ->
-    Efunc (List.map (fun (x, m, c) -> (x, m, elab_con env c)) params,
+  | Texpr_var _ -> expr
+  | Texpr_op (o, el) -> Texpr_op (o, List.map (elab_expr env) el)
+  | Texpr_func (params, ret, s) ->
+    Texpr_func (List.map (fun (x, m, c) -> (x, m, elab_con env c)) params,
            elab_con env ret,
            elab_stmt env s)
-  | Etuple (x, el) ->
-    Etuple (Option.map x (List.map (elab_con env)),
+  | Texpr_tuple (x, el) ->
+    Texpr_tuple (Option.map x (List.map (elab_con env)),
             List.map (elab_expr env) el)
-  | Ector (c, sel) ->
-    Ector (elab_con env c,
+  | Texpr_ctor (c, sel) ->
+    Texpr_ctor (elab_con env c,
            List.map (fun (s, e) -> (s, elab_expr env e)) sel)
-  | Econ c -> Econ (elab_con env c)
-  | Eplam (k, t, e) ->
-    Eplam (elab_kind env k, elab_iface env t, elab_expr env e)
-  | Eapp (e, params) ->
-    Eapp (elab_expr env e, List.map (elab_expr env) params)
-  | Eint _ -> expr
-  | Estring _ -> expr
-  | Ebool _ -> expr
-  | Earray (None, el) ->
-    Earray (None,  List.map (elab_expr env) el)
-  | Earray (Some _, _) -> raise (Fatal "assuming untyped array literal")
-  | Efield (e, i) -> Efield (elab_expr env e, i)
+  | Texpr_con c -> Texpr_con (elab_con env c)
+  | Texpr_plam (k, t, e) ->
+    Texpr_plam (elab_kind env k, elab_iface env t, elab_expr env e)
+  | Texpr_app (e, params) ->
+    Texpr_app (elab_expr env e, List.map (elab_expr env) params)
+  | Texpr_int _ -> expr
+  | Texpr_string _ -> expr
+  | Texpr_bool _ -> expr
+  | Texpr_array (None, el) ->
+    Texpr_array (None,  List.map (elab_expr env) el)
+  | Texpr_array (Some _, _) -> raise (Fatal "assuming untyped array literal")
+  | Texpr_field (e, i) -> Texpr_field (elab_expr env e, i)
 
 and elab_stmt env stmt =
   match stmt with
-  | Sexpr e -> Sexpr (elab_expr env e)
-  | Sblk sl ->
-    Sblk (List.map (elab_stmt env) sl)
-  | Sret e -> Sret (elab_expr env e)
-  | Sif (e, s0, s1) ->
-    Sif (elab_expr env e, elab_stmt env s0, elab_stmt env s1)
-  | Swhile (e, s) -> Swhile (elab_expr env e, elab_stmt env s)
-  | Sdecl ((id, _) as v, m, x, Econ c) ->
+  | Tstmt_expr e -> Tstmt_expr (elab_expr env e)
+  | Tstmt_blk sl ->
+    Tstmt_blk (List.map (elab_stmt env) sl)
+  | Tstmt_ret e -> Tstmt_ret (elab_expr env e)
+  | Tstmt_if (e, s0, s1) ->
+    Tstmt_if (elab_expr env e, elab_stmt env s0, elab_stmt env s1)
+  | Tstmt_while (e, s) -> Tstmt_while (elab_expr env e, elab_stmt env s)
+  | Tstmt_decl ((id, _) as v, m, x, Texpr_con c) ->
     let c' = elab_con env c in
     Hashtbl.add env.Env.elab_con_map id c';
-    Sdecl (v, m, x, Econ c')
-  | Sdecl (v, m, x, e) ->
-    Sdecl (v, m, x, elab_expr env e)
-  | Sasgn (p, e) -> Sasgn (elab_expr env p, elab_expr env e)
+    Tstmt_decl (v, m, x, Texpr_con c')
+  | Tstmt_decl (v, m, x, e) ->
+    Tstmt_decl (v, m, x, elab_expr env e)
+  | Tstmt_asgn (p, e) -> Tstmt_asgn (elab_expr env p, elab_expr env e)

@@ -1,17 +1,16 @@
-open Ast
 open Utils
 
 module StringMap = Map.Make(String)
 module Int = struct type t = int let compare = compare end
 module IntMap = Map.Make(Int)
 
-type context = { ksize: int; kctx: kind list; tctx: (int * con) IntMap.t }
+type context = { ksize: int; kctx: Ast.kind list; tctx: (int * Ast.con) IntMap.t }
 
 type env = { var_id_map: int StringMap.t;
              ctx: context;
              is_top: bool;
              mut_set: (int, unit) Hashtbl.t;
-             elab_con_map: (int, con) Hashtbl.t;
+             elab_con_map: (int, Tir.con) Hashtbl.t;
              persistent_set: (int, unit) Hashtbl.t }
 
 let empty_ctx () = { ksize = 0; kctx = []; tctx = IntMap.empty }

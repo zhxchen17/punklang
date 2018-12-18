@@ -6,7 +6,7 @@
    [Int i] instead of [Ast.Int i]. *)
 
 %{
-open Ast
+open Tir
 %}
 
 (* The next section of the grammar definition, called the *declarations*,
@@ -75,31 +75,12 @@ open Ast
    The declaration also says that parsing a [prog] will return an OCaml
    value of type [Ast.expr]. *)
 
-%start <Ast.stmt list> prog
-%start <Ast.expr> term
+%start <Tir.stmt list> prog
+%start <Tir.expr> term
 
 (* The following %% ends the declarations section of the grammar definition. *)
 
 %%
-
-(* Now begins the *rules* section of the grammar definition.  This is a list
-   of rules that are essentially in Backus-Naur Form (BNF), although where in
-   BNF we would write "::=" these rules simply write ":".
-
-   The format of a rule is
-
-     name:
-       | production { action }
-       | production { action }
-       | etc.
-       ;
-
-    The *production* is the sequence of *symbols* that the rule matches.
-    A symbol is either a token or the name of another rule.
-    The *action* is the OCaml value to return if a match occurs.
-    Each production can *bind* the value carried by a symbol and use
-    that value in its action.  This is perhaps best understood by example... *)
-
 
 prog:
   | s = list(stmt); EOF { s }
@@ -110,44 +91,44 @@ term:
   ;
 
 expr:
-	| i = INT { Eint i }
-  | s = STRING { Estring s }
-  | TRUE { Ebool true }
-  | FALSE { Ebool false }
-	| x = ID { Evar (-1, Some x) }
-	| e0 = expr; PLUS; e1 = expr { Eop (Add, [e0; e1]) }
-  | e0 = expr; LESS; e1 = expr { Eop (Lt, [e0; e1]) }
-  | PRINTF; LBOX; el = separated_list(COMMA, expr); RBOX { Eop (Cprintf, el) }
+	| i = INT { Texpr_int i }
+  | s = STRING { Texpr_string s }
+  | TRUE { Texpr_bool true }
+  | FALSE { Texpr_bool false }
+	| x = ID { Texpr_var (-1, Some x) }
+	| e0 = expr; PLUS; e1 = expr { Texpr_op (Top_add, [e0; e1]) }
+  | e0 = expr; LESS; e1 = expr { Texpr_op (Top_lt, [e0; e1]) }
+  | PRINTF; LBOX; el = separated_list(COMMA, expr); RBOX { Texpr_op (Top_cprintf, el) }
 	| LPAREN; e = expr; RPAREN { e }
-  | LBOX; el = separated_list(COMMA, expr); RBOX { Earray (None, el) }
-  | c = ID; LBRACE; xel = separated_list(COMMA, separated_pair(ID, COLON, expr)); RBRACE { Ector (Cnamed ((-1, Some c), None), xel) }
-  | caller = expr; LPAREN; args = separated_list(COMMA, expr); RPAREN { Eapp(caller, args) }
-  | e0 = expr; DOT; field = ID { Efield (e0, (-1, Some field)) }
-  | e = expr; LBOX; i = expr; RBOX { Eop (Idx, [e; i]) }
+  | LBOX; el = separated_list(COMMA, expr); RBOX { Texpr_array (None, el) }
+  | c = ID; LBRACE; xel = separated_list(COMMA, separated_pair(ID, COLON, expr)); RBRACE { Texpr_ctor (Tcon_named ((-1, Some c), None), xel) }
+  | caller = expr; LPAREN; args = separated_list(COMMA, expr); RPAREN { Texpr_app(caller, args) }
+  | e0 = expr; DOT; field = ID { Texpr_field (e0, (-1, Some field)) }
+  | e = expr; LBOX; i = expr; RBOX { Texpr_op (Top_idx, [e; i]) }
 	;
 
 %inline param:
-  | mut = option(VAR); x = ID; COLON; ty = con { (Var.newvar (Some x), (if Option.is_some mut then Mutable else Immutable), ty) }
+  | mut = option(VAR); x = ID; COLON; ty = con { (Var.newvar (Some x), (if Option.is_some mut then Tmut else Timm), ty) }
 
 stmt:
-  | FUNC; fname = ID; LPAREN; params = separated_list(COMMA, param); RPAREN; COLON; tr = con; LBRACE; sl = list(stmt); RBRACE { Sdecl (Var.newvar (Some fname), Immutable, None, Efunc (params, tr, Sblk sl)) }
-  | LBRACE; stmts = list(stmt); RBRACE { Sblk stmts }
-  | RETURN; e = expr; SEMICOLON { Sret e }
-  | LET; x = ID; COLON; ty = con; ASSIGN; e = expr; SEMICOLON { Sdecl (Var.newvar (Some x), Immutable, Some ty, e) }
-  | VAR; x = ID; COLON; ty = con; ASSIGN; e = expr; SEMICOLON { Sdecl (Var.newvar (Some x), Mutable, Some ty, e) }
-  | STRUCT; sname = ID; LBRACE; xcl = separated_list(COMMA, separated_pair(ID, COLON, con)); RBRACE { let v = Var.newvar (Some sname) in Sdecl (v, Immutable, None, Econ (Cnamed (v, Some (Cprod (List.map snd xcl, Some (List.map fst xcl)))))) }
-  | e = expr; SEMICOLON { Sexpr e }
-  | lval = expr; ASSIGN; e = expr; SEMICOLON { Sasgn(lval, e) }
-  | IF; LPAREN; e = expr; RPAREN; LBRACE; sl0 = list(stmt); RBRACE { Sif (e, Sblk sl0, Sblk []) }
-  | IF; LPAREN; e = expr; RPAREN; LBRACE; sl0 = list(stmt); RBRACE; ELSE; LBRACE; sl1 = list(stmt); RBRACE { Sif (e, Sblk sl0, Sblk sl1) }
-  | WHILE; LPAREN; e = expr; RPAREN; LBRACE; sl = list(stmt); RBRACE { Swhile (e, Sblk sl) }
+  | FUNC; fname = ID; LPAREN; params = separated_list(COMMA, param); RPAREN; COLON; tr = con; LBRACE; sl = list(stmt); RBRACE { Tstmt_decl (Var.newvar (Some fname), Timm, None, Texpr_func (params, tr, Tstmt_blk sl)) }
+  | LBRACE; stmts = list(stmt); RBRACE { Tstmt_blk stmts }
+  | RETURN; e = expr; SEMICOLON { Tstmt_ret e }
+  | LET; x = ID; COLON; ty = con; ASSIGN; e = expr; SEMICOLON { Tstmt_decl (Var.newvar (Some x), Timm, Some ty, e) }
+  | VAR; x = ID; COLON; ty = con; ASSIGN; e = expr; SEMICOLON { Tstmt_decl (Var.newvar (Some x), Tmut, Some ty, e) }
+  | STRUCT; sname = ID; LBRACE; xcl = separated_list(COMMA, separated_pair(ID, COLON, con)); RBRACE { let v = Var.newvar (Some sname) in Tstmt_decl (v, Timm, None, Texpr_con (Tcon_named (v, Some (Tcon_prod (List.map snd xcl, Some (List.map fst xcl)))))) }
+  | e = expr; SEMICOLON { Tstmt_expr e }
+  | lval = expr; ASSIGN; e = expr; SEMICOLON { Tstmt_asgn(lval, e) }
+  | IF; LPAREN; e = expr; RPAREN; LBRACE; sl0 = list(stmt); RBRACE { Tstmt_if (e, Tstmt_blk sl0, Tstmt_blk []) }
+  | IF; LPAREN; e = expr; RPAREN; LBRACE; sl0 = list(stmt); RBRACE; ELSE; LBRACE; sl1 = list(stmt); RBRACE { Tstmt_if (e, Tstmt_blk sl0, Tstmt_blk sl1) }
+  | WHILE; LPAREN; e = expr; RPAREN; LBRACE; sl = list(stmt); RBRACE { Tstmt_while (e, Tstmt_blk sl) }
   ;
 
 con:
-  | CINT { Cint }
-  | CSTRING { Cstring }
-  | CBOOL { Cbool }
-  | LPAREN; cl = separated_list(COMMA, con) RPAREN { Cprod (cl, None) }
-  | x = ID { Cnamed ((-1, Some x), None) }
-  | c = con; LBOX; len = option(expr); RBOX { Carray(c, len) }
+  | CINT { Tcon_int }
+  | CSTRING { Tcon_string }
+  | CBOOL { Tcon_bool }
+  | LPAREN; cl = separated_list(COMMA, con) RPAREN { Tcon_prod (cl, None) }
+  | x = ID { Tcon_named ((-1, Some x), None) }
+  | c = con; LBOX; len = option(expr); RBOX { Tcon_array(c, len) }
   ;
