@@ -32,8 +32,7 @@ and subst_con_main m s n l c =
   | Carrow (params, cr) ->
     Carrow (List.map (subst_con_main m s n l) params, subst_con_main m s n l cr)
   | Cprod (cl, x_opt) -> Cprod (List.map (subst_con_main m s n l) cl, x_opt)
-  | Cnamed (v, None) -> c
-  | Cnamed (v, Some c) -> Cnamed (v, Some (subst_con_main m s n l c))
+  | Cnamed (v, c) -> Cnamed (v, subst_con_main m s n l c)
   | Cref c -> Cref (subst_con_main m s n l c)
   | Cint | Cstring | Cbool -> c
   | Cforall (k, c) ->
@@ -76,8 +75,7 @@ let rec subst_expr_main m s n l e =
            subst_iface_main m s n l t,
            subst_expr_main (m + 1) s n l e)
   | Earray (c, el) ->
-    (* FIXME *)
-    Earray (None, List.map (subst_expr_main m s n l) el)
+    Earray (subst_con_main m s n l c, List.map (subst_expr_main m s n l) el)
   | Efield (e, i) -> Efield (subst_expr_main m s n l e, i)
 
 and subst_stmt_main m s n l st =
@@ -91,9 +89,8 @@ and subst_stmt_main m s n l st =
          subst_stmt_main m s n l s1)
   | Swhile (e, st) ->
     Swhile (subst_expr_main m s n l e, subst_stmt_main m s n l st)
-  | Sdecl (v, mu, Some c, e) ->
-    Sdecl (v, mu, Some (subst_con_main m s n l c), subst_expr_main m s n l e)
-  | Sdecl (v, mu, None, e) -> Sdecl (v, mu, None, subst_expr_main m s n l e)
+  | Sdecl (v, mu, c, e) ->
+    Sdecl (v, mu, subst_con_main m s n l c, subst_expr_main m s n l e)
   | Sasgn (v, e) -> Sasgn(v, subst_expr_main m s n l e)
 
 let subst_kind s x = subst_kind_main 0 [s] 1 0 x

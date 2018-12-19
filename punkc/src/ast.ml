@@ -28,7 +28,7 @@ and con =
   | Carray of con * expr option
   (* | Cexists of kind * con  (\* binds **\) *)
   | Cref of con
-  | Cnamed of Var.id * con option
+  | Cnamed of Var.id * con
   | Cunit
 
 and iface =
@@ -48,7 +48,7 @@ and expr =
   | Ector of con * (string * expr) list
   | Econ of con (* for decls only *)
   | Eplam of kind * iface * expr
-  | Earray of con option * expr list
+  | Earray of con * expr list
   | Efield of expr * Var.id
   (* | Eproj of expr * int *)
   (* | Epapp of expr * con *)
@@ -61,5 +61,5 @@ and stmt =
   | Sret of expr
   | Sif of expr * stmt * stmt
   | Swhile of expr * stmt
-  | Sdecl of Var.id * mut * con option * expr
+  | Sdecl of Var.id * mut * con * expr
   | Sasgn of expr * expr

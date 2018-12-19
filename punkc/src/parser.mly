@@ -100,8 +100,8 @@ expr:
   | e0 = expr; LESS; e1 = expr { Texpr_op (Top_lt, [e0; e1]) }
   | PRINTF; LBOX; el = separated_list(COMMA, expr); RBOX { Texpr_op (Top_cprintf, el) }
 	| LPAREN; e = expr; RPAREN { e }
-  | LBOX; el = separated_list(COMMA, expr); RBOX { Texpr_array (None, el) }
-  | c = ID; LBRACE; xel = separated_list(COMMA, separated_pair(ID, COLON, expr)); RBRACE { Texpr_ctor (Tcon_named ((-1, Some c), None), xel) }
+  | LBOX; el = separated_list(COMMA, expr); RBOX { Texpr_array el }
+  | c = ID; LBRACE; xel = separated_list(COMMA, separated_pair(ID, COLON, expr)); RBRACE { Texpr_ctor (Tcon_named (-1, Some c), xel) }
   | caller = expr; LPAREN; args = separated_list(COMMA, expr); RPAREN { Texpr_app(caller, args) }
   | e0 = expr; DOT; field = ID { Texpr_field (e0, (-1, Some field)) }
   | e = expr; LBOX; i = expr; RBOX { Texpr_op (Top_idx, [e; i]) }
@@ -116,7 +116,7 @@ stmt:
   | RETURN; e = expr; SEMICOLON { Tstmt_ret e }
   | LET; x = ID; COLON; ty = con; ASSIGN; e = expr; SEMICOLON { Tstmt_decl (Var.newvar (Some x), Timm, Some ty, e) }
   | VAR; x = ID; COLON; ty = con; ASSIGN; e = expr; SEMICOLON { Tstmt_decl (Var.newvar (Some x), Tmut, Some ty, e) }
-  | STRUCT; sname = ID; LBRACE; xcl = separated_list(COMMA, separated_pair(ID, COLON, con)); RBRACE { let v = Var.newvar (Some sname) in Tstmt_decl (v, Timm, None, Texpr_con (Tcon_named (v, Some (Tcon_prod (List.map snd xcl, Some (List.map fst xcl)))))) }
+  | STRUCT; sname = ID; LBRACE; xcl = separated_list(COMMA, separated_pair(ID, COLON, con)); RBRACE { let v = Var.newvar (Some sname) in Tstmt_decl (v, Timm, None, Texpr_con (Tcon_prod (List.map snd xcl, Some (List.map fst xcl)))) }
   | e = expr; SEMICOLON { Tstmt_expr e }
   | lval = expr; ASSIGN; e = expr; SEMICOLON { Tstmt_asgn(lval, e) }
   | IF; LPAREN; e = expr; RPAREN; LBRACE; sl0 = list(stmt); RBRACE { Tstmt_if (e, Tstmt_blk sl0, Tstmt_blk []) }
@@ -129,6 +129,6 @@ con:
   | CSTRING { Tcon_string }
   | CBOOL { Tcon_bool }
   | LPAREN; cl = separated_list(COMMA, con) RPAREN { Tcon_prod (cl, None) }
-  | x = ID { Tcon_named ((-1, Some x), None) }
+  | x = ID { Tcon_named (-1, Some x) }
   | c = con; LBOX; len = option(expr); RBOX { Tcon_array(c, len) }
   ;

@@ -8,15 +8,15 @@ let rec resolve_con env con =
     Tcon_arrow (List.map (resolve_con env) cpl, resolve_con env cr)
   | Tcon_lam (k, c) -> Tcon_lam (resolve_kind env k, resolve_con env c)
   | Tcon_ref c -> Tcon_ref (resolve_con env c)
-  | Tcon_named ((i, Some x), c) when i < 0 ->
+  | Tcon_named (i, Some x) when i < 0 ->
     assert (i = -1);
     begin match Env.find_id_opt env x with
       | Some id ->
-        Tcon_named ((id, Some x), Option.map c (resolve_con env))
+        Tcon_named (id, Some x)
       | None -> raise (Error "undeclared type name")
     end
   | Tcon_forall (k, c) -> Tcon_forall (resolve_kind env k, resolve_con env c)
-  | Tcon_named (a, c) -> Tcon_named (a, Option.map c (resolve_con env))
+  | Tcon_named a -> Tcon_named a
   | Tcon_app (c0, c1) -> Tcon_app (resolve_con env c0, resolve_con env c1)
   | Tcon_unit -> con
   | Tcon_int -> con
@@ -52,9 +52,8 @@ let rec resolve_expr env expr =
     Texpr_func (List.map (fun (x, m, c) -> (x, m, resolve_con env c)) params,
            resolve_con env ret,
            resolve_stmt env' s)
-  | Texpr_tuple (x, el) ->
-    Texpr_tuple (Option.map x (List.map (resolve_con env)),
-            List.map (resolve_expr env) el)
+  | Texpr_tuple el ->
+    Texpr_tuple (List.map (resolve_expr env) el)
   | Texpr_ctor (c, sel) ->
     Texpr_ctor (resolve_con env c,
            List.map (fun (s, e) -> (s, resolve_expr env e)) sel)
@@ -67,9 +66,8 @@ let rec resolve_expr env expr =
   | Texpr_string _ -> expr
   | Texpr_bool _ -> expr
   | Texpr_var (_, None) -> expr
-  | Texpr_array (None, el) ->
-    Texpr_array (None, List.map (resolve_expr env) el)
-  | Texpr_array (Some _, _) -> raise (Fatal "assuming untyped array literal")
+  | Texpr_array el ->
+    Texpr_array (List.map (resolve_expr env) el)
   | Texpr_field (e, i) -> Texpr_field (resolve_expr env e, i)
 
 and resolve_stmt env stmt =

@@ -53,7 +53,7 @@ let new_emitter () =
     method emit_con env c =
       match c with
       | Cint -> int_type
-      | Cnamed (v, Some c) -> self#emit_con env c
+      | Cnamed (v, c) -> self#emit_con env c
       | Cprod (cl, _) ->
         struct_type context (Array.of_list (List.map (self#emit_con env) cl))
       | _ -> raise (Fatal ("unimplemented type emission " ^ (string_of_con c)))
@@ -126,7 +126,7 @@ let new_emitter () =
       | Efield (b, (i, Some f)) ->
         assert (i >= 0);
         build_extractvalue (self#emit_expr env b) i f builder
-      | Earray (Some c, el) ->
+      | Earray (c, el) ->
         let res = build_array_alloca
           (self#emit_con env c)
           (const_int int_type (List.length el))
@@ -139,7 +139,7 @@ let new_emitter () =
           () in
         List.iteri init_elem el;
         res
-      | Econ (Cnamed ((_, Some s), Some (Cprod (cl, _)))) ->
+      | Econ (Cnamed ((_, Some s), Cprod (cl, _))) ->
         let ty = named_struct_type context s in
         let _ =
           struct_set_body
@@ -159,7 +159,8 @@ let new_emitter () =
             res
         end
       | Eapp (f, params) ->
-        build_call (self#emit_expr env f) (Array.of_list (List.map (self#emit_expr env) params)) "res" builder
+        build_call (self#emit_expr env f)
+          (Array.of_list (List.map (self#emit_expr env) params)) "res" builder
       | _ -> raise (Fatal "expr code emission unimplemented yet")
 
     method emit_stmt env s =
@@ -168,7 +169,7 @@ let new_emitter () =
         let ret = self#emit_expr env e in
         let _ = build_ret ret builder in
         ()
-      | Sdecl ((id, n), m, x, e) ->
+      | Sdecl ((id, n), m, c, e) ->
         let value = self#emit_expr env e in
         let var =
           if env.is_top then begin
@@ -176,15 +177,11 @@ let new_emitter () =
             define_global (Env.mangle_name id) value the_module
           end else if m = Mutable then begin
             Hashtbl.add env.persistent_set id ();
-            match x with
-            | Some c ->
-              let addr =
-                build_alloca
-                  (self#emit_con env c) (Env.mangle_name id) builder in
-              ignore (build_store value addr builder);
-              addr
-            | None ->
-              raise (Fatal "symbol declaration should be type infered")
+            let addr =
+              build_alloca
+                (self#emit_con env c) (Env.mangle_name id) builder in
+            ignore (build_store value addr builder);
+            addr
           end else
             value
         in
@@ -205,8 +202,8 @@ let new_emitter () =
           (build_store (self#emit_expr env e) (self#get_addr env lval) builder);
       | Sif (e, s0, s1) ->
         let pred = self#emit_expr env e in
-        (* Grab the first block so that we might later add the conditional branch
-         * to it at the end of the function. *)
+        (* Grab the first block so that we might later add the conditional
+         * branch to it at the end of the function. *)
         let start_bb = insertion_block builder in
         let the_function = block_parent start_bb in
 
@@ -216,9 +213,9 @@ let new_emitter () =
         position_at_end then_bb builder;
         self#emit_stmt env s0;
 
-        (* Codegen of 'then' can change the current block, update then_bb for the
-         * phi. We create a new name because one is used for the phi node, and the
-         * other is used for the conditional branch. *)
+        (* Codegen of 'then' can change the current block, update then_bb for
+         * the phi. We create a new name because one is used for the phi node,
+         * and the other is used for the conditional branch. *)
         let new_then_bb = insertion_block builder in
 
         (* Emit 'else' value. *)
@@ -226,8 +223,8 @@ let new_emitter () =
         position_at_end else_bb builder;
         self#emit_stmt env s1;
 
-        (* Codegen of 'else' can change the current block, update else_bb for the
-         * phi. *)
+        (* Codegen of 'else' can change the current block, update else_bb for
+         * the phi. *)
         let new_else_bb = insertion_block builder in
 
         (* Emit merge block. *)

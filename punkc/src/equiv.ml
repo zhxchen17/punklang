@@ -7,8 +7,7 @@ let rec natural_kind ctx c =
   | Carrow _-> Ktype
   | Cprod _ -> Ktype
   | Cref _ -> Ktype
-  | Cnamed (v, Some c) -> natural_kind ctx c
-  | Cnamed ((id, _), None) -> natural_kind ctx (Env.lookup_type ctx id)
+  | Cnamed (v, c) -> natural_kind ctx c
   | Cunit -> Ktype
   | Cint -> Ktype
   | Capp (c0, c1) ->

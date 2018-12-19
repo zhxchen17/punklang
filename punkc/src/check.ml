@@ -50,10 +50,9 @@ and infer_con ctx c =
   | Tcon_int -> (Cint, Ksing Cint)
   | Tcon_string -> (Cstring, Ksing Cstring)
   | Tcon_bool -> (Cbool, Ksing Cbool)
-  | Tcon_named (v, Some c') ->
-    let (c'', _) = infer_con ctx c' in
-    (Cnamed (v, Some c''), Ksing c'')
-  | Tcon_named (v, None) -> raise (TypeError "infer_con")
+  | Tcon_named (id, _) ->
+    let c' = Env.lookup_type ctx id in
+    (c', Ksing c')
   | Tcon_array (c', x) ->
     let c'' = check_con ctx c' Ktype in
     let x' = Option.map x (infer_expr ctx) in
@@ -90,7 +89,7 @@ and infer_expr ctx e =
     let k' = check_kind ctx k in
     let (c', e'') = infer_expr (Env.extend_kind ctx k') e' in
     (Cforall (k', c'), e'')
-  | Texpr_tuple (_, el) ->
+  | Texpr_tuple el ->
     let cel = List.map (infer_expr ctx) el in
     let cl = List.map fst cel in
     (Cprod (cl, None), Etuple (Some cl, List.map snd cel))
@@ -123,7 +122,7 @@ and infer_expr ctx e =
   | Texpr_field (e', (id, Some f)) ->
     assert (id = -1);
     begin match infer_expr ctx e' with
-      | (Cnamed (_, Some (Cprod (cl, Some sl))), e'') ->
+      | (Cnamed (_, Cprod (cl, Some sl)), e'') ->
         let rec find x lst =
           match lst with
           | [] -> raise (Error "field name not found")
@@ -131,15 +130,14 @@ and infer_expr ctx e =
         let i = find f sl in
         let c' = List.nth cl i in
         (c', Efield (e'', (i, Some f)))
-      | (Cnamed (_, None), _) -> raise (Error "opaque struct")
-      | (Cnamed (_, Some c'), _) -> raise (Error (string_of_con c'))
-      | (c, _) -> raise (Error ("unable to access field " ^ f ^ (string_of_con c)))
+      | (c, _) ->
+        raise (Error ("unable to access field " ^ f ^ " " ^ (string_of_con c)))
     end
   | Texpr_field (e', (id, None)) ->
     raise (Fatal "field must have a name to be accessed")
-  | Texpr_ctor (Tcon_named ((id, _) as n, _), sel) ->
+  | Texpr_ctor (Tcon_named ((id, _) as n), sel) ->
     begin match Env.lookup_type ctx id with
-      | Cnamed (v, Some (Cprod (cl, Some sl))) as c
+      | Cnamed (v, Cprod (cl, Some sl)) as c
         when n = v && List.compare_lengths sl sel = 0 ->
         let rec reorder sl sel =
           let rec remove s sel =
@@ -161,14 +159,14 @@ and infer_expr ctx e =
                equiv ctx c' (List.nth cl i) Ktype;
                (s, e')) sel' in
         (c, Ector (c, sel''))
-      | _ -> raise (Error "illegal constructor")
+      | _ -> raise (Error "illegal constructor - not found")
     end
   | Texpr_ctor _ -> raise (Fatal "illegal constructor")
-  | Texpr_array (_, el) ->
+  | Texpr_array el ->
     let h = List.hd el in
     let (ca, _) = infer_expr ctx h in
     (Carray (ca, Some (Eint (List.length el))),
-     Earray (Some ca, List.map (fun e' -> check_expr ctx e' ca) el))
+     Earray (ca, List.map (fun e' -> check_expr ctx e' ca) el))
 
 and infer_expr_whnf ctx e =
   let (c, e') = infer_expr ctx e in
@@ -185,10 +183,11 @@ and infer_stmt ctx s =
     (c, Sblk [s''])
   | Tstmt_blk (hd::next) ->
     begin match hd with
-      | Tstmt_decl ((id, _), _, _, e) ->
+      | Tstmt_decl ((id, _) as n, _, _, e) ->
         let hd' = check_stmt ctx hd Cunit in
         let (c, _) = infer_expr ctx e (* TODO recursive definition *) in
-        begin match infer_stmt (Env.extend_type ctx id c) (Tstmt_blk next) with
+        let cn = match e with Texpr_con _ -> Cnamed (n, c) | _ -> c in
+        begin match infer_stmt (Env.extend_type ctx id cn) (Tstmt_blk next) with
           | (c', Sblk next') -> (c', Sblk (hd'::next'))
           | _ -> raise (Fatal "broken code block in type checking")
         end
@@ -213,10 +212,10 @@ and infer_stmt ctx s =
   | Tstmt_decl (v, m, Some c, e) ->
     let (c', e') = infer_expr ctx e in
     (* FIXME check c' == c *)
-    (Cunit, Sdecl (v, Attrs.translate_attrs m, Some c', e'))
+    (Cunit, Sdecl (v, Attrs.translate_attrs m, c', e'))
   | Tstmt_decl (v, m, None, e) ->
     let (c', e') = infer_expr ctx e in
-    (Cunit, Sdecl (v, Attrs.translate_attrs m, Some c', e'))
+    (Cunit, Sdecl (v, Attrs.translate_attrs m, c', e'))
   | Tstmt_asgn (x, e) ->
     (* TODO check x: typeof(e) *)
     let (_, e') = infer_expr ctx e in
@@ -254,10 +253,13 @@ and check_stmt ctx s c =
     (Swhile (e', s''))
   | Tstmt_decl (v, m, Some c, e) ->
     let (c', e') = infer_expr ctx e in
-    Sdecl (v, Attrs.translate_attrs m, Some c', e')
+    Sdecl (v, Attrs.translate_attrs m, c', e')
+  | Tstmt_decl (v, m, None, (Texpr_con _ as e)) ->
+    let (c', _) = infer_expr ctx e in
+    Sdecl (v, Attrs.translate_attrs m, c', Econ (Cnamed (v, c')))
   | Tstmt_decl (v, m, None, e) ->
     let (c', e') = infer_expr ctx e in
-    Sdecl (v, Attrs.translate_attrs m, Some c', e')
+    Sdecl (v, Attrs.translate_attrs m, c', e')
   | Tstmt_asgn (x, e) ->
     (* TODO *)
     let (_, e') = infer_expr ctx e in

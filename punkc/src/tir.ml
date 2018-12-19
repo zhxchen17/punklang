@@ -28,7 +28,7 @@ and con =
   | Tcon_array of con * expr option
   (* | Cexists of kind * con  (\* binds **\) *)
   | Tcon_ref of con
-  | Tcon_named of Var.id * con option
+  | Tcon_named of Var.id
   | Tcon_unit
 
 and iface =
@@ -44,11 +44,11 @@ and expr =
   | Texpr_op of op * expr list
   | Texpr_func of (Var.id * mut * con) list * con * stmt
   | Texpr_app of expr * expr list
-  | Texpr_tuple of con list option * expr list
+  | Texpr_tuple of expr list
   | Texpr_ctor of con * (string * expr) list
   | Texpr_con of con (* for decls only *)
   | Texpr_plam of kind * iface * expr
-  | Texpr_array of con option * expr list
+  | Texpr_array of expr list
   | Texpr_field of expr * Var.id
   (* | Eproj of expr * int *)
   (* | Epapp of expr * con *)

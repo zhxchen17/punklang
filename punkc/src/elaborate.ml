@@ -8,14 +8,7 @@ let rec elab_con env con =
     Tcon_arrow (List.map (elab_con env) cpl, elab_con env cr)
   | Tcon_lam (k, c) -> Tcon_lam (elab_kind env k, elab_con env c)
   | Tcon_ref c -> Tcon_ref (elab_con env c)
-  | Tcon_named (v, Some c) -> Tcon_named (v, Some (elab_con env c))
-  | Tcon_named ((id, x), None) ->
-    begin match Hashtbl.find env.Env.elab_con_map id with
-      | Tcon_named ((i, _), Some c') ->
-        assert (i = id);
-        Tcon_named ((id, x), Some c')
-      | _ -> raise (Fatal "type name mapped to anonymous type")
-    end
+  | Tcon_named v -> Tcon_named v
   | Tcon_forall (k, c) -> Tcon_forall (elab_kind env k, elab_con env c)
   | Tcon_app (c0, c1) -> Tcon_app (elab_con env c0, elab_con env c1)
   | Tcon_unit -> con
@@ -48,9 +41,8 @@ let rec elab_expr env expr =
     Texpr_func (List.map (fun (x, m, c) -> (x, m, elab_con env c)) params,
            elab_con env ret,
            elab_stmt env s)
-  | Texpr_tuple (x, el) ->
-    Texpr_tuple (Option.map x (List.map (elab_con env)),
-            List.map (elab_expr env) el)
+  | Texpr_tuple el ->
+    Texpr_tuple (List.map (elab_expr env) el)
   | Texpr_ctor (c, sel) ->
     Texpr_ctor (elab_con env c,
            List.map (fun (s, e) -> (s, elab_expr env e)) sel)
@@ -62,9 +54,8 @@ let rec elab_expr env expr =
   | Texpr_int _ -> expr
   | Texpr_string _ -> expr
   | Texpr_bool _ -> expr
-  | Texpr_array (None, el) ->
-    Texpr_array (None,  List.map (elab_expr env) el)
-  | Texpr_array (Some _, _) -> raise (Fatal "assuming untyped array literal")
+  | Texpr_array el ->
+    Texpr_array (List.map (elab_expr env) el)
   | Texpr_field (e, i) -> Texpr_field (elab_expr env e, i)
 
 and elab_stmt env stmt =
