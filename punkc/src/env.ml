@@ -4,7 +4,7 @@ module StringMap = Map.Make(String)
 module Int = struct type t = int let compare = compare end
 module IntMap = Map.Make(Int)
 
-type context = { ksize: int; kctx: Ast.kind list; tctx: (int * Ast.con) IntMap.t }
+type context = { ksize: int; kctx: Ast.kind list; tctx: (int * Ast.ty) IntMap.t }
 
 type env = { var_id_map: int StringMap.t;
              ctx: context;

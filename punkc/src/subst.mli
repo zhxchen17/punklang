@@ -1,10 +1,10 @@
 open Ast
 
-val subst_kind: con -> kind -> kind
-val subst_con: con -> con -> con
-val subst_expr: con -> expr -> expr
+val subst_kind: ty -> kind -> kind
+val subst_con: ty -> ty -> ty
+val subst_expr: ty -> exp -> exp
 
 val lift_kind: int -> kind -> kind
-val lift_con: int -> con -> con
-val lift_expr: int -> expr -> expr
+val lift_con: int -> ty -> ty
+val lift_expr: int -> exp -> exp
 
