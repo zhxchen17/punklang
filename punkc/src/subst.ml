@@ -51,6 +51,8 @@ let rec subst_iface_main m s n l t =
     Imthds (name, List.map (subst_con_main m s n l) cl, subst_con_main m s n l c)
 
 let rec subst_expr_main m s n l e =
+  let subst_texp i (t, e) =
+      (subst_con_main (m + i) s n l t, subst_expr_main (m + i) s n l e) in
   match e with
   | Evar _ -> e
   | Efunc (params, c, st) ->
@@ -60,38 +62,39 @@ let rec subst_expr_main m s n l e =
            subst_con_main m s n l c,
            subst_stmt_main m s n l st)
   | Eint _ | Estring _ | Ebool _ -> e
-  | Eop (o, el) -> Eop (o, List.map (subst_expr_main m s n l) el)
-  | Eapp (e, el) ->
-    Eapp (subst_expr_main m s n l e, List.map (subst_expr_main m s n l) el)
-  | Etuple (x, el) ->
-    Etuple (Option.map x (List.map (subst_con_main m s n l)),
-            List.map (subst_expr_main m s n l) el)
+  | Eop (o, tel) -> Eop (o, (List.map (subst_texp 0) tel))
+  | Eapp (e, tel) ->
+    Eapp (subst_texp 0 e, List.map (subst_texp 0) tel)
+  | Etuple el ->
+    Etuple (List.map (subst_texp 0) el)
   | Ector (c, sel) ->
     Ector (subst_con_main m s n l c,
-           List.map (fun (x, e) -> (x, subst_expr_main m s n l e)) sel)
+           List.map (fun (x, e) -> (x, subst_texp 0 e)) sel)
   | Econ c -> Econ (subst_con_main m s n l c)
-  | Eplam (k, t, e) ->
+  | Eplam (k, t, te) ->
     Eplam (subst_kind_main m s n l k,
            subst_iface_main m s n l t,
-           subst_expr_main (m + 1) s n l e)
+           subst_texp 1 te)
   | Earray (c, el) ->
-    Earray (subst_con_main m s n l c, List.map (subst_expr_main m s n l) el)
-  | Efield (e, i) -> Efield (subst_expr_main m s n l e, i)
+    Earray (subst_con_main m s n l c, List.map (subst_texp 0) el)
+  | Efield (e, i) -> Efield (subst_texp 0 e, i)
 
 and subst_stmt_main m s n l st =
+  let subst_texp (t, e) =
+      (subst_con_main m s n l t, subst_expr_main m s n l e) in
   match st with
-  | Sexpr e -> Sexpr (subst_expr_main m s n l e)
+  | Sexpr e -> Sexpr (subst_texp e)
   | Sblk sl -> Sblk (List.map (subst_stmt_main m s n l) sl)
-  | Sret e -> Sret (subst_expr_main m s n l e)
+  | Sret e -> Sret (subst_texp e)
   | Sif (e, s0, s1) ->
-    Sif (subst_expr_main m s n l e,
+    Sif (subst_texp e,
          subst_stmt_main m s n l s0,
          subst_stmt_main m s n l s1)
   | Swhile (e, st) ->
-    Swhile (subst_expr_main m s n l e, subst_stmt_main m s n l st)
-  | Sdecl (v, mu, c, e) ->
-    Sdecl (v, mu, subst_con_main m s n l c, subst_expr_main m s n l e)
-  | Sasgn (v, e) -> Sasgn(v, subst_expr_main m s n l e)
+    Swhile (subst_texp e, subst_stmt_main m s n l st)
+  | Sdecl (v, mu, e) ->
+    Sdecl (v, mu, subst_texp e)
+  | Sasgn (v, e) -> Sasgn(v, subst_texp e)
 
 let subst_kind s x = subst_kind_main 0 [s] 1 0 x
 let subst_con s x = subst_con_main 0 [s] 1 0 x

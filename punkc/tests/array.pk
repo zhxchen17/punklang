@@ -1,5 +1,10 @@
-let y: int = 41;
+let y: int = 39;
+
 func foo(x: int): int {
   let a: int[3] = [1, 2, 3];
-  return x + y;
+  let t: int = a[1] + x + y;
+  printf ["%d\n", t];
+  return t;
 }
+
+foo(1);

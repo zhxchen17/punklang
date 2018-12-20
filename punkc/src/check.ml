@@ -92,7 +92,7 @@ and infer_expr ctx e =
   | Texpr_tuple el ->
     let cel = List.map (infer_expr ctx) el in
     let cl = List.map fst cel in
-    (Cprod (cl, None), Etuple (Some cl, List.map snd cel))
+    (Cprod (cl, None), Etuple cel)
   | Texpr_int i -> (Cint, Eint i)
   | Texpr_string s -> (Cstring, Estring s)
   | Texpr_bool b -> (Cbool, Ebool b)
@@ -104,16 +104,16 @@ and infer_expr ctx e =
     let cel' = List.map (infer_expr ctx) el in
     begin match o with
       | Top_add ->
-        (Cint, Eop (Add, List.map snd cel'))
+        (Cint, Eop (Add, cel'))
       | Top_cprintf ->
-        (Cunit, Eop (Cprintf, List.map snd cel'))
-      | Top_lt -> (Cbool, Eop (Lt, List.map snd cel'))
+        (Cunit, Eop (Cprintf, cel'))
+      | Top_lt -> (Cbool, Eop (Lt, cel'))
       | Top_idx ->
         begin match cel' with
           | [hd; i] ->
             let (c', e') = hd in
             begin match c' with
-              | Carray (c'', _) -> (c'', Eop (Idx, List.map snd cel'))
+              | Carray (c'', _) -> (c'', Eop (Idx, cel'))
               | _ -> raise (Fatal "indexing from nonarray is not supported yet")
             end
           | _ -> raise (Fatal "indexing operator must have exactly two oprands")
@@ -122,14 +122,14 @@ and infer_expr ctx e =
   | Texpr_field (e', (id, Some f)) ->
     assert (id = -1);
     begin match infer_expr ctx e' with
-      | (Cnamed (_, Cprod (cl, Some sl)), e'') ->
+      | (Cnamed (_, Cprod (cl, Some sl)), _) as te' ->
         let rec find x lst =
           match lst with
           | [] -> raise (Error "field name not found")
           | h::t -> if x = h then 0 else 1 + find x t in
         let i = find f sl in
         let c' = List.nth cl i in
-        (c', Efield (e'', (i, Some f)))
+        (c', Efield (te', (i, Some f)))
       | (c, _) ->
         raise (Error ("unable to access field " ^ f ^ " " ^ (string_of_con c)))
     end
@@ -155,9 +155,9 @@ and infer_expr ctx e =
         let sel'' =
           List.mapi
             (fun i (s, e) ->
-               let (c', e') = infer_expr ctx e in
+               let (c', _) as te' = infer_expr ctx e in
                equiv ctx c' (List.nth cl i) Ktype;
-               (s, e')) sel' in
+               (s, te')) sel' in
         (c, Ector (c, sel''))
       | _ -> raise (Error "illegal constructor - not found")
     end
@@ -169,14 +169,14 @@ and infer_expr ctx e =
      Earray (ca, List.map (fun e' -> check_expr ctx e' ca) el))
 
 and infer_expr_whnf ctx e =
-  let (c, e') = infer_expr ctx e in
-  (whnf ctx c, e')
+  let (c, _) as te' = infer_expr ctx e in
+  (whnf ctx c, te')
 
 and infer_stmt ctx s =
   match s with
   | Tstmt_ret e ->
-    let (c, e') = infer_expr ctx e in
-    (c, Sret e')
+    let (c, _) as te' = infer_expr ctx e in
+    (c, Sret te')
   | Tstmt_blk [] -> (Cunit, Sblk [])
   | Tstmt_blk [s'] ->
     let (c, s'') = infer_stmt ctx s' in
@@ -212,23 +212,23 @@ and infer_stmt ctx s =
   | Tstmt_decl (v, m, Some c, e) ->
     let (c', e') = infer_expr ctx e in
     (* FIXME check c' == c *)
-    (Cunit, Sdecl (v, Attrs.translate_attrs m, c', e'))
+    (Cunit, Sdecl (v, Attrs.translate_attrs m, (c', e')))
   | Tstmt_decl (v, m, None, e) ->
     let (c', e') = infer_expr ctx e in
-    (Cunit, Sdecl (v, Attrs.translate_attrs m, c', e'))
+    (Cunit, Sdecl (v, Attrs.translate_attrs m, (c', e')))
   | Tstmt_asgn (x, e) ->
     (* TODO check x: typeof(e) *)
-    let (_, e') = infer_expr ctx e in
-    let (_, x') = infer_expr ctx x in
-    (Cunit, Sasgn (x', e'))
+    let te' = infer_expr ctx e in
+    let tx' = infer_expr ctx x in
+    (Cunit, Sasgn (tx', te'))
   | Tstmt_expr e ->
-    let (_, e') = infer_expr ctx e in
-    (Cunit, Sexpr e')
+    let te' = infer_expr ctx e in
+    (Cunit, Sexpr te')
 
 and check_expr ctx e c =
-  let (c', e') = infer_expr ctx e in
+  let (c', _) as te' = infer_expr ctx e in
   equiv ctx c' c Ktype;
-  e'
+  te'
 
 and check_stmt ctx s c =
     match s with
@@ -253,18 +253,18 @@ and check_stmt ctx s c =
     (Swhile (e', s''))
   | Tstmt_decl (v, m, Some c, e) ->
     let (c', e') = infer_expr ctx e in
-    Sdecl (v, Attrs.translate_attrs m, c', e')
+    Sdecl (v, Attrs.translate_attrs m, (c', e'))
   | Tstmt_decl (v, m, None, (Texpr_con _ as e)) ->
     let (c', _) = infer_expr ctx e in
-    Sdecl (v, Attrs.translate_attrs m, c', Econ (Cnamed (v, c')))
+    Sdecl (v, Attrs.translate_attrs m, (c', Econ (Cnamed (v, c'))))
   | Tstmt_decl (v, m, None, e) ->
     let (c', e') = infer_expr ctx e in
-    Sdecl (v, Attrs.translate_attrs m, c', e')
+    Sdecl (v, Attrs.translate_attrs m, (c', e'))
   | Tstmt_asgn (x, e) ->
     (* TODO *)
-    let (_, e') = infer_expr ctx e in
-    let (_, x') = infer_expr ctx x in
-    Sasgn (x', e')
+    let te' = infer_expr ctx e in
+    let tx' = infer_expr ctx x in
+    Sasgn (tx', te')
   | Tstmt_expr e ->
-    let (_, e') = infer_expr ctx e in
-    Sexpr e'
+    let te' = infer_expr ctx e in
+    Sexpr te'

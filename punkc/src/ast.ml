@@ -41,15 +41,15 @@ and exp =
   | Eint of int
   | Estring of string
   | Ebool of bool
-  | Eop of op * exp list
+  | Eop of op * texp list
   | Efunc of (Var.id * mut * ty) list * ty * stmt
-  | Eapp of exp * exp list
-  | Etuple of ty list option * exp list
-  | Ector of ty * (string * exp) list
+  | Eapp of texp * texp list
+  | Etuple of texp list
+  | Ector of ty * (string * texp) list
   | Econ of ty (* for decls only *)
-  | Eplam of kind * iface * exp
-  | Earray of ty * exp list
-  | Efield of exp * Var.id
+  | Eplam of kind * iface * texp
+  | Earray of ty * texp list
+  | Efield of texp * Var.id
   (* | Eproj of expr * int *)
   (* | Epapp of expr * con *)
   (* | Epack of con * expr * con *)
@@ -58,10 +58,10 @@ and exp =
 and texp = ty * exp
 
 and stmt =
-    Sexpr of exp
+    Sexpr of texp
   | Sblk of stmt list
-  | Sret of exp
-  | Sif of exp * stmt * stmt
-  | Swhile of exp * stmt
-  | Sdecl of Var.id * mut * ty * exp
-  | Sasgn of exp * exp
+  | Sret of texp
+  | Sif of texp * stmt * stmt
+  | Swhile of texp * stmt
+  | Sdecl of Var.id * mut * texp
+  | Sasgn of texp * texp

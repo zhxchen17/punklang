@@ -31,14 +31,14 @@ let new_emitter () =
     val mutable builder = builder context
     val mutable current_block = entry_block
 
-    method private get_addr env lv =
+    method private get_addr env ((_, lv) as tlv) =
       match lv with
       | Evar (i, _) -> Hashtbl.find named_values i
       | Efield (b, (i, Some f)) ->
         let base = self#get_addr env b in
         assert (i >= 0);
         build_struct_gep base i f builder
-      | _ -> self#emit_expr env lv
+      | _ -> self#emit_texp env tlv
 
     method private switch_block blk =
       let ret = current_block in
@@ -58,7 +58,7 @@ let new_emitter () =
         struct_type context (Array.of_list (List.map (self#emit_con env) cl))
       | _ -> raise (Fatal ("unimplemented type emission " ^ (string_of_con c)))
 
-    method emit_expr env e =
+    method emit_texp env (_, e) =
       match e with
       | Evar (id, _) when id >= 0 ->
         let v = Hashtbl.find named_values id in
@@ -76,21 +76,25 @@ let new_emitter () =
       | Eop (o, el) ->
         begin match o with
           | Add ->
-            let lhs = self#emit_expr env (List.nth el 0) in
-            let rhs = self#emit_expr env (List.nth el 1) in
+            let lhs = self#emit_texp env (List.nth el 0) in
+            let rhs = self#emit_texp env (List.nth el 1) in
             build_add lhs rhs "add_op" builder
           | Cprintf ->
-            let vl = List.map (self#emit_expr env) el in
+            let vl = List.map (self#emit_texp env) el in
             begin match lookup_function "printf" the_module with
               | None -> raise (Fatal "printf should be declared")
               | Some printer ->
                 build_call printer (Array.of_list vl) "unit" builder
             end
           | Lt ->
-            let lhs = self#emit_expr env (List.nth el 0) in
-            let rhs = self#emit_expr env (List.nth el 1) in
+            let lhs = self#emit_texp env (List.nth el 0) in
+            let rhs = self#emit_texp env (List.nth el 1) in
             build_icmp Icmp.Slt lhs rhs "lt_op" builder
-          | Idx -> raise (Fatal "unimplemented Idx")
+          | Idx ->
+            let lhs = self#emit_texp env (List.nth el 0) in
+            let rhs = self#emit_texp env (List.nth el 1) in
+            let p = build_gep lhs [| rhs |] "idx" builder in
+            build_load p "ld" builder
         end
       | Efunc (vmcl, cr, body) ->
         begin
@@ -125,7 +129,7 @@ let new_emitter () =
         end
       | Efield (b, (i, Some f)) ->
         assert (i >= 0);
-        build_extractvalue (self#emit_expr env b) i f builder
+        build_extractvalue (self#emit_texp env b) i f builder
       | Earray (c, el) ->
         let res = build_array_alloca
           (self#emit_con env c)
@@ -135,7 +139,7 @@ let new_emitter () =
           let gep =
             build_gep res
               (Array.make 1 (const_int int_type i)) "gep" builder in
-          let _ = build_store (self#emit_expr env e') gep builder in
+          let _ = build_store (self#emit_texp env e') gep builder in
           () in
         List.iteri init_elem el;
         res
@@ -154,23 +158,23 @@ let new_emitter () =
             let (_, res) = List.fold_left
               (fun (i, v) e ->
                  (i + 1,
-                  build_insertvalue v (self#emit_expr env e) i "field" builder))
+                  build_insertvalue v (self#emit_texp env e) i "field" builder))
               (0, start) (List.map snd sel) in
             res
         end
       | Eapp (f, params) ->
-        build_call (self#emit_expr env f)
-          (Array.of_list (List.map (self#emit_expr env) params)) "res" builder
+        build_call (self#emit_texp env f)
+          (Array.of_list (List.map (self#emit_texp env) params)) "res" builder
       | _ -> raise (Fatal "expr code emission unimplemented yet")
 
     method emit_stmt env s =
       match s with
-      | Sret e ->
-        let ret = self#emit_expr env e in
+      | Sret te ->
+        let ret = self#emit_texp env te in
         let _ = build_ret ret builder in
         ()
-      | Sdecl ((id, n), m, c, e) ->
-        let value = self#emit_expr env e in
+      | Sdecl ((id, n), m, ((c, _) as te)) ->
+        let value = self#emit_texp env te in
         let var =
           if env.is_top then begin
             Hashtbl.add env.persistent_set id ();
@@ -195,13 +199,14 @@ let new_emitter () =
           ()
         end else
           List.iter (self#emit_stmt env) sl;
-      | Sexpr e ->
-        let _ = self#emit_expr env e in ()
-      | Sasgn (lval, e) ->
+      | Sexpr te ->
+        let _ = self#emit_texp env te in ()
+      | Sasgn (lval, te) ->
         ignore
-          (build_store (self#emit_expr env e) (self#get_addr env lval) builder);
-      | Sif (e, s0, s1) ->
-        let pred = self#emit_expr env e in
+          (build_store (self#emit_texp env te)
+             (self#get_addr env lval) builder);
+      | Sif (te, s0, s1) ->
+        let pred = self#emit_texp env te in
         (* Grab the first block so that we might later add the conditional
          * branch to it at the end of the function. *)
         let start_bb = insertion_block builder in
@@ -250,7 +255,7 @@ let new_emitter () =
         let cond_bb = append_block context "cond" the_function in
 
         position_at_end cond_bb builder;
-        let pred = self#emit_expr env e in
+        let pred = self#emit_texp env e in
 
         let new_cond_bb = insertion_block builder in
 
