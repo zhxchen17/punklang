@@ -2,11 +2,18 @@ open Llvm
 open Ast
 open Utils
 
+let counter = ref 0
+
+let get_id () =
+  counter := !counter + 1;
+  string_of_int !counter
+
 let new_emitter () =
-  let context = global_context () in
+  let context = create_context () in
   let int_type = integer_type context 32 in
   let byte_type = integer_type context 8 in
   let bool_type = integer_type context 1 in
+  let str_type = pointer_type byte_type in
   let void_type = void_type context in
   let mdl = create_module context "punkage" in
 
@@ -53,7 +60,10 @@ let new_emitter () =
     method emit_con env c =
       match c with
       | Cint -> int_type
+      | Cbool -> bool_type
+      | Cstring -> str_type
       | Cnamed (v, c) -> self#emit_con env c
+      | Carray (c, _) -> pointer_type (self#emit_con env c)
       | Cprod (cl, _) ->
         struct_type context (Array.of_list (List.map (self#emit_con env) cl))
       | _ -> raise (Fatal ("unimplemented type emission " ^ (string_of_con c)))
@@ -179,15 +189,14 @@ let new_emitter () =
           if env.is_top then begin
             Hashtbl.add env.persistent_set id ();
             define_global (Env.mangle_name id) value the_module
-          end else if m = Mutable then begin
+          end else begin
             Hashtbl.add env.persistent_set id ();
             let addr =
               build_alloca
                 (self#emit_con env c) (Env.mangle_name id) builder in
             ignore (build_store value addr builder);
             addr
-          end else
-            value
+          end
         in
         Hashtbl.add named_values id var;
       | Sblk sl ->

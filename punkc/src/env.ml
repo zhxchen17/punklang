@@ -4,7 +4,8 @@ module StringMap = Map.Make(String)
 module Int = struct type t = int let compare = compare end
 module IntMap = Map.Make(Int)
 
-type context = { ksize: int; kctx: Ast.kind list; tctx: (int * Ast.ty) IntMap.t }
+type context =
+  { ksize: int; kctx: Ast.kind list; tctx: (int * Ast.ty) IntMap.t }
 
 type env = { var_id_map: int StringMap.t;
              ctx: context;
@@ -28,8 +29,7 @@ let add_id env id name =
 let find_id_opt env name = StringMap.find_opt name env.var_id_map
 
 let lookup_kind ({ kctx }: context) i =
-  Subst.lift_kind
-    (i + 1) (List.nth kctx i)
+  Subst.lift_kind (i + 1) (List.nth kctx i)
 
 let lookup_type ({ ksize; tctx }: context) v =
   match IntMap.find_opt v tctx with

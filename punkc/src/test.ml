@@ -53,7 +53,8 @@ let test_gen file =
     let out_file = temp_file name ".out" in
     let diff_file = temp_file name ".diff" in
     let () = Llvm.print_module ll_file llvm_module in
-    let _ = Sys.command ("llc -relocation-model=pic -filetype=obj -o=" ^ obj_file ^ " " ^ ll_file) in
+    let _ = Sys.command ("llc -relocation-model=pic -filetype=obj -o=" ^
+                         obj_file ^ " " ^ ll_file) in
     let _ = Sys.command ("gcc " ^ obj_file ^ " -o " ^ exe_file) in
     let _ = Sys.command (exe_file ^ " > " ^ out_file) in
     let ret =
