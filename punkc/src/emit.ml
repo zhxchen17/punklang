@@ -2,12 +2,6 @@ open Llvm
 open Ast
 open Utils
 
-let counter = ref 0
-
-let get_id () =
-  counter := !counter + 1;
-  string_of_int !counter
-
 let new_emitter () =
   let context = create_context () in
   let int_type = integer_type context 32 in
@@ -33,12 +27,11 @@ let new_emitter () =
   object (self)
     val mutable the_module = mdl
     val mutable main_block = entry_block
-    val mutable named_values:(int, llvalue) Hashtbl.t
-      = Hashtbl.create table_size
     val mutable builder = builder context
     val mutable current_block = entry_block
 
     method private get_addr env ((_, lv) as tlv) =
+      let { Env.named_values; } = env in
       match lv with
       | Evar (i, _) -> Hashtbl.find named_values i
       | Efield (b, (i, Some f)) ->
@@ -57,6 +50,43 @@ let new_emitter () =
       current_block <- blk;
       position_at_end blk builder
 
+    method private emit_func env name (vmcl, cr, body) =
+      let fname =
+        match name with
+        | Some s -> s
+        | None -> Env.new_func_name () in
+      begin
+        let { Env.named_values; } = env in
+        let ft =
+          function_type
+            (self#emit_con env cr)
+            (Array.map
+               (fun (v, _, c) -> self#emit_con env c)
+               (Array.of_list vmcl)) in
+        let the_function =
+          declare_function fname ft the_module in
+        let set_param i a =
+          match (Array.of_list vmcl).(i) with
+          | ((id, Some n), _, c) ->
+            set_value_name n a;
+            Hashtbl.add named_values id a;
+          | _ -> raise (Error "unnamed param") in
+        Array.iteri set_param (params the_function);
+        (* Create a new basic block to start insertion into. *)
+        let block = append_block context "entry" the_function in
+        let parent = self#switch_block block in
+        try
+          let _ = self#emit_stmt env body in
+          ignore (build_ret (undef (self#emit_con env cr)) builder);
+          (* Validate the generated code, checking for consistency. *)
+          (* Llvm_analysis.assert_valid_function the_function; *)
+          self#restore_block parent;
+          the_function
+        with e ->
+          delete_function the_function;
+          raise e
+      end
+
     method emit_con env c =
       match c with
       | Cint -> int_type
@@ -66,16 +96,24 @@ let new_emitter () =
       | Carray (c, _) -> pointer_type (self#emit_con env c)
       | Cprod (cl, _) ->
         struct_type context (Array.of_list (List.map (self#emit_con env) cl))
+      | Carrow (cl, cr) -> function_type (self#emit_con env cr)
+                             (Array.map (self#emit_con env) (Array.of_list cl))
       | _ -> raise (Fatal ("unimplemented type emission " ^ (string_of_con c)))
 
-    method emit_texp env (_, e) =
+    method emit_texp env (c, e) =
+      let { Env.named_values; } = env in
       match e with
-      | Evar (id, _) when id >= 0 ->
+      | Evar (id, n) when id >= 0 -> begin
+        try
         let v = Hashtbl.find named_values id in
         if Hashtbl.mem env.Env.persistent_set id then
           build_load v ((Env.mangle_name id) ^ "_ld") builder
         else
           v
+        with e ->
+          Option.value_map n ~default:() ~f:print_string;
+          raise e
+      end
       | Evar (id, _) when id < 0 ->
         raise (Error "unknown variable name")
       | Eint i -> const_int int_type i
@@ -89,6 +127,18 @@ let new_emitter () =
             let lhs = self#emit_texp env (List.nth el 0) in
             let rhs = self#emit_texp env (List.nth el 1) in
             build_add lhs rhs "add_op" builder
+          | Multiply ->
+            let lhs = self#emit_texp env (List.nth el 0) in
+            let rhs = self#emit_texp env (List.nth el 1) in
+            build_mul lhs rhs "mul_op" builder
+          | Minus ->
+            let lhs = self#emit_texp env (List.nth el 0) in
+            let rhs = self#emit_texp env (List.nth el 1) in
+            build_sub lhs rhs "sub_op" builder
+          | Equal ->
+            let lhs = self#emit_texp env (List.nth el 0) in
+            let rhs = self#emit_texp env (List.nth el 1) in
+            build_icmp Icmp.Eq lhs rhs "eq_op" builder
           | Cprintf ->
             let vl = List.map (self#emit_texp env) el in
             begin match lookup_function "printf" the_module with
@@ -107,36 +157,7 @@ let new_emitter () =
             build_load p "ld" builder
         end
       | Efunc (vmcl, cr, body) ->
-        begin
-          let env = { env with Env.is_top = false } in
-          let ft =
-            function_type
-              (self#emit_con env cr)
-              (Array.map
-                 (fun (v, _, c) -> self#emit_con env c)
-                 (Array.of_list vmcl)) in
-          let the_function =
-            declare_function (Env.new_func_name ()) ft the_module in
-          let set_param i a =
-            match (Array.of_list vmcl).(i) with
-            | ((id, Some n), _, c) ->
-              set_value_name n a;
-              Hashtbl.add named_values id a;
-            | _ -> raise (Error "unnamed param") in
-          Array.iteri set_param (params the_function);
-          (* Create a new basic block to start insertion into. *)
-          let block = append_block context "entry" the_function in
-          let parent = self#switch_block block in
-          try
-            let _ = self#emit_stmt env body in
-            (* Validate the generated code, checking for consistency. *)
-            Llvm_analysis.assert_valid_function the_function;
-            self#restore_block parent;
-            the_function
-          with e ->
-            delete_function the_function;
-            raise e
-        end
+        self#emit_func env None (vmcl, cr, body)
       | Efield (b, (i, Some f)) ->
         assert (i >= 0);
         build_extractvalue (self#emit_texp env b) i f builder
@@ -175,34 +196,57 @@ let new_emitter () =
       | Eapp (f, params) ->
         build_call (self#emit_texp env f)
           (Array.of_list (List.map (self#emit_texp env) params)) "res" builder
-      | _ -> raise (Fatal "expr code emission unimplemented yet")
+      | _ -> raise (Fatal ("expr code emission unimplemented yet" ^ (string_of_exp e)))
 
     method emit_stmt env s =
+      let { Env.named_values; } = env in
       match s with
       | Sret te ->
         let ret = self#emit_texp env te in
-        let _ = build_ret ret builder in
-        ()
+        ignore (build_ret ret builder);
       | Sdecl ((id, n), m, ((c, _) as te)) ->
-        let value = self#emit_texp env te in
-        let var =
-          if env.is_top then begin
+        let c' = self#emit_con env c in
+        if env.is_top then begin
+          let env' = { env with is_top = false; } in
+          match te with
+          | (_, Efunc (vmcl, cr, body)) ->
+            let func_name = Env.mangle_func_name id in
+            ignore (self#emit_func env' (Some func_name) (vmcl, cr, body));
+          | (_, Econ _) ->
+            let value = self#emit_texp env' te in
+            ignore (define_global (Env.mangle_name id) value the_module);
+          | _ ->
             Hashtbl.add env.persistent_set id ();
-            define_global (Env.mangle_name id) value the_module
-          end else begin
-            Hashtbl.add env.persistent_set id ();
-            let addr =
-              build_alloca
-                (self#emit_con env c) (Env.mangle_name id) builder in
+            let addr = define_global (Env.mangle_name id) (undef c')
+                the_module in
+            let value = self#emit_texp env' te in
+            Hashtbl.add named_values id addr;
+            let parent = self#switch_block main_block in
             ignore (build_store value addr builder);
-            addr
-          end
-        in
-        Hashtbl.add named_values id var;
+            self#restore_block parent;
+        end else begin
+          let value = self#emit_texp env te in
+          Hashtbl.add env.persistent_set id ();
+          let addr =
+            build_alloca
+              (self#emit_con env c) (Env.mangle_name id) builder in
+          ignore (build_store value addr builder);
+          Hashtbl.add named_values id addr;
+        end
       | Sblk sl ->
         if env.is_top then begin
           let _ = declare_exit the_module in
           let _ = declare_printf the_module in
+          let update_global env s =
+            match s with
+            | Sdecl ((id, _), _, (c, Efunc _)) ->
+              let func = declare_function (Env.mangle_func_name id)
+                  (self#emit_con env c) the_module in
+              Hashtbl.add env.persistent_set id ();
+              let addr = define_global (Env.mangle_name id) func the_module in
+              Hashtbl.add named_values id addr;
+            | _ -> () in
+          List.iter (update_global env) sl;
           List.iter (self#emit_stmt env) sl;
           let _ = build_ret (const_int int_type 0) builder in
           ()

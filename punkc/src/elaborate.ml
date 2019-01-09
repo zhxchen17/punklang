@@ -71,6 +71,5 @@ and elab_stmt env stmt =
     let c' = elab_con env c in
     Hashtbl.add env.Env.elab_con_map id c';
     Tstmt_decl (v, m, x, Texpr_con c')
-  | Tstmt_decl (v, m, x, e) ->
-    Tstmt_decl (v, m, x, elab_expr env e)
+  | Tstmt_decl (v, m, x, e) -> Tstmt_decl (v, m, x, elab_expr env e)
   | Tstmt_asgn (p, e) -> Tstmt_asgn (elab_expr env p, elab_expr env e)

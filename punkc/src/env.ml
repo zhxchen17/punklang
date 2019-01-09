@@ -12,7 +12,8 @@ type env = { var_id_map: int StringMap.t;
              is_top: bool;
              mut_set: (int, unit) Hashtbl.t;
              elab_con_map: (int, Tir.con) Hashtbl.t;
-             persistent_set: (int, unit) Hashtbl.t }
+             persistent_set: (int, unit) Hashtbl.t;
+             named_values: (int, Llvm.llvalue) Hashtbl.t }
 
 let empty_ctx () = { ksize = 0; kctx = []; tctx = IntMap.empty }
 
@@ -21,7 +22,8 @@ let empty_env () = { var_id_map = StringMap.empty;
                      is_top = true;
                      mut_set = Hashtbl.create table_size;
                      elab_con_map = Hashtbl.create table_size;
-                     persistent_set = Hashtbl.create table_size }
+                     persistent_set = Hashtbl.create table_size;
+                     named_values = Hashtbl.create table_size }
 
 let add_id env id name =
   { env with var_id_map = StringMap.add name id env.var_id_map; }
@@ -48,4 +50,8 @@ let new_func_name () =
   let (id, _) = Var.newvar None in
   "f" ^ string_of_int id
 
+let mangle_func_name id =
+  "f" ^ string_of_int id
+
 let mangle_name id = "v" ^ string_of_int id
+

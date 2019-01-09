@@ -29,3 +29,9 @@ let rec string_of_con c =
   | Cstring -> "Cstring"
   | Cbool -> "Cbool"
   | _ -> raise (Fatal "unimplemented constructor")
+
+and string_of_exp e =
+  match e with
+  | Etuple _ -> "Etuple"
+  | Econ c -> "Econ (" ^ (string_of_con c) ^ ")"
+  | _ -> "unknown"

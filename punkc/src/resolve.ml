@@ -43,7 +43,7 @@ and resolve_iface env iface =
 let rec resolve_expr env expr =
   match expr with
   | Texpr_var (-1, Some x) -> Texpr_var (Env.StringMap.find x env.Env.var_id_map, Some x)
-  | Texpr_var (_, Some x) -> raise (Fatal "id is negative")
+  | Texpr_var (_, Some x) -> raise (Fatal "id should be negative")
   | Texpr_op (o, el) -> Texpr_op (o, List.map (resolve_expr env) el)
   | Texpr_func (params, ret, s) ->
     let update_id env ((id, s), _, _) =
@@ -74,14 +74,14 @@ and resolve_stmt env stmt =
   match stmt with
   | Tstmt_expr e -> Tstmt_expr (resolve_expr env e)
   | Tstmt_blk sl ->
-    let update_id (env, sl) s =
+    let update_env env s =
       match s with
       | Tstmt_decl ((id, Some x), _, _, e) when id >= 0 ->
-        (Env.add_id env id x, sl @ [resolve_stmt env s])
-      | Tstmt_decl ((id, _), _, _, _) when id < 0 -> raise (Fatal "id is negative")
-      | _ -> (env, sl @ [resolve_stmt env s]) in
-    let _, sl' = List.fold_left update_id (env, []) sl in
-    Tstmt_blk sl'
+        Env.add_id env id x
+      | Tstmt_decl ((id, _), _, _, _) when id < 0 ->
+        raise (Fatal "id is negative")
+      | _ -> env in
+    Tstmt_blk (Visitors.visit_block env update_env resolve_stmt sl)
   | Tstmt_ret e -> Tstmt_ret (resolve_expr env e)
   | Tstmt_if (e, s0, s1) ->
     Tstmt_if (resolve_expr env e, resolve_stmt env s0, resolve_stmt env s1)

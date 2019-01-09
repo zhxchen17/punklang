@@ -4,6 +4,9 @@ type mut =
 
 type op =
   | Top_add
+  | Top_multiply
+  | Top_minus
+  | Top_equal
   | Top_cprintf
   | Top_lt
   | Top_idx

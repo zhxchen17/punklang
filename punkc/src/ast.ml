@@ -4,6 +4,9 @@ type mut =
 
 type op =
   | Add
+  | Multiply
+  | Minus
+  | Equal
   | Cprintf
   | Lt
   | Idx

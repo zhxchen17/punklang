@@ -39,8 +39,8 @@ class package = object (self)
     | Tstmt_blk sl -> sl
     | _ -> raise (Fatal "failed to unpack elaborated program")
   method type_check prog =
-    match Check.infer_stmt env.ctx (Tstmt_blk prog) with
-    | (Cunit, Sblk sl) -> sl
+    match Check.check_stmt env (Tstmt_blk prog) with
+    | Sblk sl -> sl
     | _ -> raise (Fatal "failed to unpack type checked program")
   method analyze prog =
     match Analysis.check_mut_stmt env (Sblk prog) with

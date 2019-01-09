@@ -38,6 +38,9 @@ rule read =
   parse
   | white { read lexbuf }
   | "+"   { PLUS }
+  | "*"   { ASTERISK }
+  | "-"   { MINUS }
+  | "=="  { EQUAL }
   | "("   { LPAREN }
   | ")"   { RPAREN }
   | "func" { FUNC }

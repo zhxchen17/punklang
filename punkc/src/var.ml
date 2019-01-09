@@ -6,3 +6,4 @@ let newvar s =
   let res = !nextvar in
   nextvar := res + 1;
   (res, s)
+

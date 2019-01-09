@@ -24,7 +24,10 @@ open Tir
 %token <string> STRING
 %token PRINTF
 %token PLUS
+%token ASTERISK
+%token MINUS
 %token LESS
+%token EQUAL
 %token LPAREN
 %token RPAREN
 %token VAR
@@ -64,7 +67,10 @@ open Tir
 
 (* %nonassoc IN *)
 %left PLUS
+%left ASTERISK
+%left MINUS
 %left LESS
+%left EQUAL
 %left DOT
 %nonassoc LBOX
 %nonassoc LPAREN
@@ -97,7 +103,10 @@ expr:
   | FALSE { Texpr_bool false }
 	| x = ID { Texpr_var (-1, Some x) }
 	| e0 = expr; PLUS; e1 = expr { Texpr_op (Top_add, [e0; e1]) }
+  | e0 = expr; ASTERISK; e1 = expr { Texpr_op (Top_multiply, [e0; e1]) }
+  | e0 = expr; MINUS; e1 = expr { Texpr_op (Top_minus, [e0; e1]) }
   | e0 = expr; LESS; e1 = expr { Texpr_op (Top_lt, [e0; e1]) }
+  | e0 = expr; EQUAL; e1 = expr { Texpr_op (Top_equal, [e0; e1]) }
   | PRINTF; LBOX; el = separated_list(COMMA, expr); RBOX { Texpr_op (Top_cprintf, el) }
 	| LPAREN; e = expr; RPAREN { e }
   | LBOX; el = separated_list(COMMA, expr); RBOX { Texpr_array el }
@@ -111,7 +120,7 @@ expr:
   | mut = option(VAR); x = ID; COLON; ty = con { (Var.newvar (Some x), (if Option.is_some mut then Tmut else Timm), ty) }
 
 stmt:
-  | FUNC; fname = ID; LPAREN; params = separated_list(COMMA, param); RPAREN; COLON; tr = con; LBRACE; sl = list(stmt); RBRACE { Tstmt_decl (Var.newvar (Some fname), Timm, None, Texpr_func (params, tr, Tstmt_blk sl)) }
+  | FUNC; fname = ID; LPAREN; params = separated_list(COMMA, param); RPAREN; COLON; tr = con; LBRACE; sl = list(stmt); RBRACE { Tstmt_decl (Var.newvar (Some fname), Timm, (Some (Tcon_arrow (List.map (fun (_, _, x) -> x) params, tr))), Texpr_func (params, tr, Tstmt_blk sl)) }
   | LBRACE; stmts = list(stmt); RBRACE { Tstmt_blk stmts }
   | RETURN; e = expr; SEMICOLON { Tstmt_ret e }
   | LET; x = ID; COLON; ty = con; ASSIGN; e = expr; SEMICOLON { Tstmt_decl (Var.newvar (Some x), Timm, Some ty, e) }
