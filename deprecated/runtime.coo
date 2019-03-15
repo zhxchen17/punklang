@@ -1,4 +1,0 @@
-#include "runtime.h"
-
-LispList::print() {
-}

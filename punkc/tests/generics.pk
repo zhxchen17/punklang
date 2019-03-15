@@ -1,0 +1,11 @@
+struct Map[K, V] {
+  data: V[]
+}
+
+func foo[K, V](m: Map[K, V]): int {
+  return 0;
+}
+
+let m = Map[int, int] { data: {} };
+
+foo(m);

@@ -50,6 +50,8 @@ class package = object (self)
     let emitter = Emit.new_emitter () in
     let _ = emitter#emit_stmt env (Sblk prog) in
     emitter#get_module ()
+  method llvm_gen mdl =
+    Llvm_gen.gen_module mdl
   method compile code =
     code
     |> self#parse
@@ -58,4 +60,5 @@ class package = object (self)
     |> self#type_check
     |> self#analyze
     |> self#emit
+    |> self#llvm_gen
 end;;

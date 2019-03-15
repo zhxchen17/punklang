@@ -13,7 +13,7 @@ type env = { var_id_map: int StringMap.t;
              mut_set: (int, unit) Hashtbl.t;
              elab_con_map: (int, Tir.con) Hashtbl.t;
              persistent_set: (int, unit) Hashtbl.t;
-             named_values: (int, Llvm.llvalue) Hashtbl.t }
+             named_values: (int, Bir.bir_value) Hashtbl.t }
 
 let empty_ctx () = { ksize = 0; kctx = []; tctx = IntMap.empty }
 

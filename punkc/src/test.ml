@@ -44,23 +44,26 @@ let test_gen file =
   pkg >:: fun _ ->
     let pk_file = Filename.concat root_dir file in
     let expect_file = Filename.concat root_dir (pkg ^ ".expect") in
-    let compiler = new Main.package in
-    let llvm_module = compiler#compile (load_file pk_file) in
-    let name = prefix ^ pkg in
-    let ll_file = temp_file name ".ll" in
-    let obj_file = temp_file name ".o" in
-    let exe_file = temp_file name ".exe" in
-    let out_file = temp_file name ".out" in
-    let diff_file = temp_file name ".diff" in
-    let () = Llvm.print_module ll_file llvm_module in
-    let _ = Sys.command ("llc -relocation-model=pic -filetype=obj -o=" ^
-                         obj_file ^ " " ^ ll_file) in
-    let _ = Sys.command ("gcc " ^ obj_file ^ " -o " ^ exe_file) in
-    let _ = Sys.command (exe_file ^ " > " ^ out_file) in
-    let ret =
-      Sys.command
-        ("diff " ^ expect_file ^ " " ^ out_file ^ " > " ^ diff_file) in
-    assert_equal ret 0
+    if not (Sys.file_exists expect_file) then
+      ()
+    else
+      let compiler = new Main.package in
+      let llvm_module = compiler#compile (load_file pk_file) in
+      let name = prefix ^ pkg in
+      let ll_file = temp_file name ".ll" in
+      let obj_file = temp_file name ".o" in
+      let exe_file = temp_file name ".exe" in
+      let out_file = temp_file name ".out" in
+      let diff_file = temp_file name ".diff" in
+      let () = Llvm.print_module ll_file llvm_module in
+      let _ = Sys.command ("llc -relocation-model=pic -filetype=obj -o=" ^
+                           obj_file ^ " " ^ ll_file) in
+      let _ = Sys.command ("gcc " ^ obj_file ^ " -o " ^ exe_file) in
+      let _ = Sys.command (exe_file ^ " > " ^ out_file) in
+      let ret =
+        Sys.command
+          ("diff " ^ expect_file ^ " " ^ out_file ^ " > " ^ diff_file) in
+      assert_equal ret 0
 
 let unit_tests = "unit tests" >::: (List.map test_gen tests)
 

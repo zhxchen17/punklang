@@ -9,6 +9,17 @@ exception SyntaxError of string
 let table_size = 42
 let buf_size = 17
 
+let find a f =
+  let rec find a f n =
+    if f a.(n) then
+      match a.(n) with
+      | (_, x) -> Some x
+    else find a f (n+1)
+  in
+  try
+    find a f 0
+   with _ -> None
+
 let rec string_of_con c =
   match c with
   | Cint -> "Cint"
@@ -35,3 +46,5 @@ and string_of_exp e =
   | Etuple _ -> "Etuple"
   | Econ c -> "Econ (" ^ (string_of_con c) ^ ")"
   | _ -> "unknown"
+
+let int_of_bool b = if b then 1 else 0
