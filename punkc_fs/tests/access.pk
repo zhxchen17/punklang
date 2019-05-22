@@ -1,0 +1,19 @@
+let y: int = 41;
+
+struct other_t {
+  fz: int, fo: int, ft: int
+}
+
+struct pair_t {
+  x: int,
+  y: other_t
+}
+
+func foo(x: int): int {
+  let z: pair_t = pair_t { y: other_t { fz: 0, fo: 1, ft: 2 }, x: 0 };
+  let tmp: int = z.y.ft;
+  printf ["%d\n", tmp];
+  return x + y;
+}
+
+foo(1);

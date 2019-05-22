@@ -1,0 +1,6 @@
+frontend/bin/
+frontend/obj/
+ir/bin/
+ir/obj/
+driver/bin/
+driver/obj/

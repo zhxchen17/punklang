@@ -1,0 +1,9 @@
+let y: int = 41;
+
+func foo(x: int): int {
+  let z: string = "hello world";
+  printf ["%s\n", z];
+  return x + y;
+}
+
+foo(1);

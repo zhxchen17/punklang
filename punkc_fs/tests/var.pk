@@ -1,0 +1,11 @@
+let y: int = 41;
+
+func foo(x: int): int {
+  var z: int = 0;
+  printf ["%d\n", z];
+  z = 1;
+  printf ["%d\n", z];
+  return x + y + z;
+}
+
+foo(0);

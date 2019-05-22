@@ -1,0 +1,44 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="config.fs" />
+    <Compile Include="errors.fs" />
+    <Compile Include="tir.fs" />
+    <Compile Include="subst.fs" />
+    <Compile Include="env.fs" />
+    <Compile Include="parse.fs" />
+    <Compile Include="lex.fs" />
+    <Compile Include="visitors.fs" />
+    <Compile Include="resolve.fs" />
+    <Compile Include="elaborate.fs" />
+    <Compile Include="attrs.fs" />
+    <Compile Include="equiv.fs" />
+    <Compile Include="check.fs" />
+    <Compile Include="Library.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FsLexYacc.Runtime" Version="9.0.2" />
+    <PackageReference Include="FsLexYacc" Version="9.0.2" />
+    <FsYacc Include="$(SolutionDir)\parser\parse.fsy">
+      <OtherFlags>--module Parser</OtherFlags>
+    </FsYacc>
+    <FsLex Include="$(SolutionDir)\parser\lex.fsl">
+      <OtherFlags>--unicode</OtherFlags>
+    </FsLex>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FSharp.Compatibility.OCaml" Version="0.1.14" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ir\ir.fsproj" />
+  </ItemGroup>
+
+
+</Project>

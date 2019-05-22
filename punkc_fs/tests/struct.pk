@@ -1,0 +1,14 @@
+let y: int = 41;
+
+struct pair_t {
+  x: int,
+  y: int
+}
+
+func foo(x: int): int {
+  let z: pair_t = pair_t { y: 1, x: 0 };
+  printf ["%d, %d\n", z.x, z.y];
+  return x + y;
+}
+
+foo(1);

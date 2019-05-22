@@ -1,0 +1,25 @@
+let y: int = 41;
+
+func yang(x: int): int {
+  if (x == 0) {
+    return 1;
+  } else {
+    return x * yin(x - 1);
+  }
+}
+
+func yin(x: int): int {
+  if (x == 0) {
+    return 1;
+  } else {
+    return x * yang(x - 1);
+  }
+}
+
+func test(): int {
+  let a: int = yang(5);
+  printf ["%d\n", a];
+  return 0;
+}
+
+test();

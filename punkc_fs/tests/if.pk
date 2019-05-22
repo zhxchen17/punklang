@@ -1,0 +1,16 @@
+let y: int = 41;
+
+func foo(x: int): int {
+  let z: bool = true;
+  if (z) {
+    if (false) {
+      printf ["%s ", "wrong"];
+    } else {
+      printf ["%s ", "correct"];
+    }
+  }
+  printf ["%s\n", "answer"];
+  return x + y;
+}
+
+foo(1);
