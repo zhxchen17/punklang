@@ -1,11 +1,17 @@
+module Llvm_gen
+
+module Hashtbl = FSharp.Compatibility.OCaml.Hashtbl
+module Array = FSharp.Compatibility.OCaml.Array
+
 open Bir
-open Utils
+open Errors
+open Config
 
 let rec gen_type mdl ctx t =
   match t with
-  | Bir_integer_type -> Llvm.integer_type ctx 64
-  | Bir_boolean_type -> Llvm.integer_type ctx 1
-  | Bir_byte_type -> Llvm.integer_type ctx 8
+  | Bir_integer_type -> Llvm.integer_type ctx 64u
+  | Bir_boolean_type -> Llvm.integer_type ctx 1u
+  | Bir_byte_type -> Llvm.integer_type ctx 8u
   | Bir_pointer_type p -> Llvm.pointer_type (gen_type mdl ctx p)
   | Bir_unit_type -> Llvm.void_type ctx
   | Bir_function_type (r, ts) ->
@@ -23,25 +29,25 @@ let decl_type mdl ctx (_, t) =
   match t with
   | Bir_named_struct_type (name, _) ->
     ignore (Llvm.named_struct_type ctx name)
-  | _ -> raise (Error "Only named user struct type can be declared.")
+  | _ -> raise (BackendError "Only named user struct type can be declared.")
 
 let def_type mdl ctx (_, t) =
   match t with
   | Bir_named_struct_type (name, ts) ->
     let s = Llvm.named_struct_type ctx name in
     ignore (Llvm.struct_set_body s (Array.map (gen_type mdl ctx) !ts) false)
-  | _ -> raise (Error "Only named user struct type can be generated.")
+  | _ -> raise (BackendError "Only named user struct type can be generated.")
 
 let decl_function mdl ctx env (name, v) =
   let gen_param f i (id, _) =
-    let p = Llvm.param f i in
-    Hashtbl.add env (string_of_int id) p in
+    let p = Llvm.param f (uint32 i) in
+    Hashtbl.add env (string id) p in
   match v with
   | (id, Bir_function (_, vs, t, name)) ->
     let f = Llvm.declare_function name (gen_type mdl ctx t) mdl in
     Array.iteri (gen_param f) vs;
-    Hashtbl.add env (string_of_int id) f
-  | _ -> raise (Error "Function value expected for func declaration.")
+    Hashtbl.add env (string id) f
+  | _ -> raise (BackendError "Function value expected for func declaration.")
 
 let gen_op o =
   match o with
@@ -49,18 +55,19 @@ let gen_op o =
   | Icmp_slt -> Llvm.Icmp.Slt
 
 let rec gen_value mdl ctx env benv builder (id, v) =
-  let sid = string_of_int id in
-  match Hashtbl.find_opt env sid with
+  let sid = string id in
+  match Hashtbl.tryfind env sid with
   | None ->
     let gen = gen_value mdl ctx env benv builder in
     let value =
       match v with
-      | Bir_nil -> Llvm.const_null (Llvm.integer_type ctx 8)
+      | Bir_nil -> Llvm.const_null (Llvm.integer_type ctx 8u)
       | Bir_gep (b, i, s) ->
         Llvm.build_gep (gen b) (Array.map gen i) s builder
-      | Bir_const_integer i -> Llvm.const_int (Llvm.integer_type ctx 64) i
+      | Bir_const_integer i ->
+        Llvm.const_int (Llvm.integer_type ctx 64u) (uint64 i)
       | Bir_const_boolean b ->
-        Llvm.const_int (Llvm.integer_type ctx 1) (int_of_bool b)
+        Llvm.const_int (Llvm.integer_type ctx 1u) (System.Convert.ToUInt64(b))
       | Bir_const_struct vs ->
         Llvm.const_struct ctx (Array.map gen vs)
       | Bir_load (v, s) ->
@@ -76,9 +83,9 @@ let rec gen_value mdl ctx env benv builder (id, v) =
       | Bir_call (v0, vs) ->
         Llvm.build_call (gen v0) (Array.map gen vs) "call" builder
       | Bir_extractvalue (v, i, s) ->
-        Llvm.build_extractvalue (gen v) i s builder
+        Llvm.build_extractvalue (gen v) (uint32 i) s builder
       | Bir_insertvalue (b, v, i, s) ->
-        Llvm.build_insertvalue (gen b) (gen v) i s builder
+        Llvm.build_insertvalue (gen b) (gen v) (uint32 i) s builder
       | Bir_array_alloca (t, v, s) ->
         Llvm.build_array_alloca (gen_type mdl ctx t) (gen v) s builder
       | Bir_store (v0, v1) ->
@@ -88,7 +95,7 @@ let rec gen_value mdl ctx env benv builder (id, v) =
       | Bir_undef t ->
         Llvm.undef (gen_type mdl ctx t)
       | Bir_var (_, name) ->
-        raise (Error "Variables should be already generated.")
+        raise (BackendError "Variables should be already generated.")
       | Bir_global_stringptr (s, n) ->
         Llvm.build_global_stringptr s n builder
       | Bir_cond_br (p, (b0, _, _), (b1, _, _)) ->
@@ -99,7 +106,7 @@ let rec gen_value mdl ctx env benv builder (id, v) =
       | Bir_alloca (t, s) ->
         Llvm.build_alloca (gen_type mdl ctx t) s builder
       | Bir_function _ ->
-        raise (Fatal "Function is not supported in codegen.")
+        raise (BackendFatal "Function is not supported in codegen.")
     in
     Hashtbl.add env sid value;
     value
@@ -109,7 +116,7 @@ let gen_global mdl ctx env (name, gid, v) =
   let empty = Hashtbl.create 0 in
   let builder = Llvm.builder ctx in
   let g = Llvm.define_global name (gen_value mdl ctx env empty builder v) mdl in
-  Hashtbl.add env (string_of_int gid) g
+  Hashtbl.add env (string gid) g
 
 let decl_block mdl ctx benv func (name, v, ts) =
   let b = Llvm.append_block ctx name func in
@@ -121,26 +128,22 @@ let gen_block mdl ctx env benv (name, v, vs) =
   Llvm.position_at_end b builder;
   ignore (Array.map (gen_value mdl ctx env benv builder) !vs)
 
-let gen_function mdl ctx env (name, f) =
+let gen_function mdl ctx env (_, f) =
   match f with
   | (id, Bir_function (bs, _, _, _)) ->
-    let func = Hashtbl.find env (string_of_int id) in
+    let func = Hashtbl.find env (string id) in
     let benv = Hashtbl.create table_size in
     Array.iter (decl_block mdl ctx benv func) !bs;
     Array.iter (gen_block mdl ctx env benv) !bs
-  | _ -> raise (Error "Code generation on non-function values.")
+  | _ -> raise (BackendError "Code generation on non-function values.")
 
-let gen_module { bir_module_name;
-                 bir_global_decls;
-                 bir_type_decls;
-                 bir_function_decls } =
+let gen_module mdl =
   let ctx = Llvm.create_context () in
-  let mdl = Llvm.create_module ctx bir_module_name in
-  let env : (string, Llvm.llvalue) Hashtbl.t =
-    Hashtbl.create Utils.table_size in
-  Array.iter (decl_type mdl ctx) !bir_type_decls;
-  Array.iter (def_type mdl ctx) !bir_type_decls;
-  Array.iter (decl_function mdl ctx env) !bir_function_decls;
-  Array.iter (gen_global mdl ctx env) !bir_global_decls;
-  Array.iter (gen_function mdl ctx env) !bir_function_decls;
-  mdl
+  let llvm_mdl = Llvm.create_module ctx mdl.bir_module_name in
+  let env = Hashtbl.create table_size in
+  Array.iter (decl_type llvm_mdl ctx) !mdl.bir_type_decls;
+  Array.iter (def_type llvm_mdl ctx) !mdl.bir_type_decls;
+  Array.iter (decl_function llvm_mdl ctx env) !mdl.bir_function_decls;
+  Array.iter (gen_global llvm_mdl ctx env) !mdl.bir_global_decls;
+  Array.iter (gen_function llvm_mdl ctx env) !mdl.bir_function_decls;
+  llvm_mdl

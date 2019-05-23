@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="errors.fs" />
+    <Compile Include="config.fs" />
+    <Compile Include="bir.fs" />
+    <Compile Include="env.fs" />
+    <Compile Include="analysis.fs" />
+    <Compile Include="emit.fs" />
+    <Compile Include="llvm.fs" />
+    <Compile Include="llvm_gen.fs" />
+    <Compile Include="Library.fs" />
+  </ItemGroup>
+
+
+  <ItemGroup>
+    <PackageReference Include="FSharp.Compatibility.OCaml" Version="0.1.14" />
+    <PackageReference Include="LLVMSharp" Version="5.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ir\ir.fsproj" />
+  </ItemGroup>
+
+</Project>

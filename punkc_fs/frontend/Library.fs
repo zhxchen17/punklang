@@ -1,12 +1,11 @@
-﻿module Frontend
+﻿namespace frontend
+
+module Frontend =
 
 open FSharp.Text.Lexing
 open Errors
 open Tir
 open ir.Ast
-
-let getString value =
-    sprintf "I'm %s!" value
 
 (* Parse a string into an ast *)
 let parse s =

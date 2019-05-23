@@ -4,3 +4,5 @@ ir/bin/
 ir/obj/
 driver/bin/
 driver/obj/
+backend/bin/
+backend/obj/
