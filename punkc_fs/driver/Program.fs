@@ -11,5 +11,5 @@ let main argv =
     let stmts = frontend.compile str
     let backend = new Backend()
     let llvm_mdl = backend.compile stmts
-    LLVM.DumpModule(llvm_mdl);
+    LLVM.PrintModuleToFile(llvm_mdl, argv.[1]);
     0
