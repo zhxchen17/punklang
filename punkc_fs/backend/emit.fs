@@ -95,7 +95,7 @@ type Emitter(mdl, context) =
       | Cbool -> bool_type
       | Cstring -> str_type
       | Cnamed (v, c) -> this.emit_con env c
-      | Carray (c, _) -> pointer_type (this.emit_con env c)
+      | Carray c -> pointer_type (this.emit_con env c)
       | Cprod (cl, _) ->
         struct_type context (List.map (this.emit_con env) cl)
       | Carrow (cl, cr) -> function_type (this.emit_con env cr)

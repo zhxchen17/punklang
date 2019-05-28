@@ -83,16 +83,9 @@ and equiv_path ctx c0 c1 =
   | (Cstring, Cstring) -> Ktype
   | (Cbool, Cbool) -> Ktype
   | (Cunit, Cunit) -> Ktype
-  | (Carray (c0', l0), Carray (c1', l1)) ->
+  | (Carray c0', Carray c1') ->
     equiv ctx c0' c1' Ktype;
-    begin match (l0, l1) with
-      | (Some x, Some y) ->
-        if x <> y then
-          raise (Error "unmatched array length")
-        else
-          Ktype
-      | _ -> raise (Fatal "unimplemented array coercion")
-    end
+    Ktype
   | (Cnamed ((id0, _), _), Cnamed ((id1, _), _)) ->
     (* TODO sometimes not Ktype when comparing HKT *)
     if id0 = id1 then Ktype else raise (Error "unmatched type name")

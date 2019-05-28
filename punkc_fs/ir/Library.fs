@@ -32,7 +32,8 @@ and ty =
   | Clam of kind * ty     (* binds *)
   | Capp of ty * ty
   | Cforall of kind * ty  (* binds *)
-  | Carray of ty * exp option
+  | Carray of ty
+  (* | Carray of ty * exp option *)
   (* | Cexists of kind * con  (\* binds **\) *)
   | Cref of ty
   | Cnamed of Var.id * ty

@@ -76,7 +76,6 @@ type nonTerminalId =
     | NONTERM__startterm
     | NONTERM__startprog
     | NONTERM_option_VAR_
-    | NONTERM_option_expr_
     | NONTERM_loption_separated_nonempty_list_COMMA_con__
     | NONTERM_loption_separated_nonempty_list_COMMA_expr__
     | NONTERM_loption_separated_nonempty_list_COMMA_param__

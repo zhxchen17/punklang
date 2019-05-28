@@ -19,7 +19,7 @@ let rec elab_con env con =
   | Tcon_string -> con
   | Tcon_bool -> con
   | Tcon_var _ -> con
-  | Tcon_array (c, x) -> Tcon_array (elab_con env c, x)
+  | Tcon_array c -> Tcon_array (elab_con env c)
 
 and elab_kind env kind =
   match kind with

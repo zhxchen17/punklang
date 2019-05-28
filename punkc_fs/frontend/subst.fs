@@ -38,8 +38,8 @@ and subst_con_main m s n l c =
   | Cint | Cstring | Cbool -> c
   | Cforall (k, c) ->
     Cforall (subst_kind_main m s n l k, subst_con_main (m + 1) s n l c)
-  | Carray (c', x) ->
-    Carray (subst_con_main m s n l c', x)
+  | Carray c' ->
+    Carray (subst_con_main m s n l c')
 
 let rec subst_iface_main m s n l t =
   match t with

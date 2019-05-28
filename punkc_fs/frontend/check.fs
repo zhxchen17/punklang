@@ -57,10 +57,9 @@ and infer_con (env: Env.env) c =
   | Tcon_named (id, _) ->
     let c' = Env.lookup_type ctx id in
     (c', Ksing c')
-  | Tcon_array (c', x) ->
+  | Tcon_array c' ->
     let c'' = check_con env c' Ktype in
-    let x' = Option.map (infer_expr env) x in
-    let ca = Carray (c'', Option.map snd x') in
+    let ca = Carray c'' in
     (ca, Ksing ca)
 
 and check_con (env: Env.env) c k =
@@ -122,7 +121,7 @@ and infer_expr (env: Env.env) e =
           | [hd; i] ->
             let (c', e') = hd in
             begin match c' with
-              | Carray (c'', _) -> (c'', Eop (Idx, cel'))
+              | Carray c'' -> (c'', Eop (Idx, cel'))
               | _ -> raise (Fatal "indexing from nonarray is not supported yet")
             end
           | _ -> raise (Fatal "indexing operator must have exactly two oprands")
@@ -174,7 +173,7 @@ and infer_expr (env: Env.env) e =
   | Texpr_array el ->
     let h = List.head el in
     let (ca, _) = infer_expr env h in
-    (Carray (ca, Some (Eint (List.length el))),
+    (Carray ca,
      Earray (ca, List.map (fun e' -> check_expr env e' ca) el))
 
 and infer_expr_whnf (env: Env.env) e =

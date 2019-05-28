@@ -139,5 +139,5 @@ con:
   | CBOOL { Tcon_bool }
   | LPAREN; cl = separated_list(COMMA, con) RPAREN { Tcon_prod (cl, None) }
   | x = ID { Tcon_named (-1, Some x) }
-  | c = con; LBOX; len = option(expr); RBOX { Tcon_array(c, len) }
+  | c = con; LBOX; RBOX { Tcon_array c }
   ;

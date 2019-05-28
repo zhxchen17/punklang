@@ -30,7 +30,8 @@ and con =
   | Tcon_lam of kind * con     (* binds *)
   | Tcon_app of con * con
   | Tcon_forall of kind * con  (* binds *)
-  | Tcon_array of con * expr option
+  | Tcon_array of con
+  (* | Tcon_array of con * expr option *)
   (* | Cexists of kind * con  (\* binds **\) *)
   | Tcon_ref of con
   | Tcon_named of Var.id
