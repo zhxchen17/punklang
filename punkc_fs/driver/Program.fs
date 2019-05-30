@@ -1,4 +1,4 @@
-﻿open System
+open System
 open System.IO
 open frontend.Frontend
 open backend.Backend
@@ -11,5 +11,5 @@ let main argv =
     let stmts = frontend.compile str
     let backend = new Backend()
     let llvm_mdl = backend.compile stmts
-    LLVM.PrintModuleToFile(llvm_mdl, argv.[1]);
+    LLVM.PrintModuleToFile(llvm_mdl, argv.[1])
     0

@@ -5,7 +5,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="var.fs" />
+    <Compile Include="var.fs" />
     <Compile Include="Library.fs" />
   </ItemGroup>
 

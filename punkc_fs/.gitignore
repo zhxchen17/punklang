@@ -7,3 +7,4 @@ driver/obj/
 backend/bin/
 backend/obj/
 output/
+.vs/

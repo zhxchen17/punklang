@@ -1,13 +1,15 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.26124.0
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.28922.388
 MinimumVisualStudioVersion = 15.0.26124.0
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "frontend", "frontend\frontend.fsproj", "{71253EE4-7985-43CF-A83B-04A3671574C4}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "frontend", "frontend\frontend.fsproj", "{71253EE4-7985-43CF-A83B-04A3671574C4}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "driver", "driver\driver.fsproj", "{85844485-DF7D-43E5-811C-294B754538AE}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "driver", "driver\driver.fsproj", "{85844485-DF7D-43E5-811C-294B754538AE}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ir", "ir\ir.fsproj", "{0FD098D7-84A3-4448-831F-BC3D01D30974}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "ir", "ir\ir.fsproj", "{0FD098D7-84A3-4448-831F-BC3D01D30974}"
+EndProject
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "backend", "backend\backend.fsproj", "{5D97D47C-2742-47C3-9250-95D0E7469C70}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -17,9 +19,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 		Release|x64 = Release|x64
 		Release|x86 = Release|x86
-	EndGlobalSection
-	GlobalSection(SolutionProperties) = preSolution
-		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{71253EE4-7985-43CF-A83B-04A3671574C4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
@@ -58,5 +57,23 @@ Global
 		{0FD098D7-84A3-4448-831F-BC3D01D30974}.Release|x64.Build.0 = Release|Any CPU
 		{0FD098D7-84A3-4448-831F-BC3D01D30974}.Release|x86.ActiveCfg = Release|Any CPU
 		{0FD098D7-84A3-4448-831F-BC3D01D30974}.Release|x86.Build.0 = Release|Any CPU
+		{5D97D47C-2742-47C3-9250-95D0E7469C70}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5D97D47C-2742-47C3-9250-95D0E7469C70}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5D97D47C-2742-47C3-9250-95D0E7469C70}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{5D97D47C-2742-47C3-9250-95D0E7469C70}.Debug|x64.Build.0 = Debug|Any CPU
+		{5D97D47C-2742-47C3-9250-95D0E7469C70}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{5D97D47C-2742-47C3-9250-95D0E7469C70}.Debug|x86.Build.0 = Debug|Any CPU
+		{5D97D47C-2742-47C3-9250-95D0E7469C70}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5D97D47C-2742-47C3-9250-95D0E7469C70}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5D97D47C-2742-47C3-9250-95D0E7469C70}.Release|x64.ActiveCfg = Release|Any CPU
+		{5D97D47C-2742-47C3-9250-95D0E7469C70}.Release|x64.Build.0 = Release|Any CPU
+		{5D97D47C-2742-47C3-9250-95D0E7469C70}.Release|x86.ActiveCfg = Release|Any CPU
+		{5D97D47C-2742-47C3-9250-95D0E7469C70}.Release|x86.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {F5A7E90E-D0FA-4570-A705-8221CADCEE86}
 	EndGlobalSection
 EndGlobal
