@@ -51,11 +51,11 @@ let rec resolve_expr (env : Env.env) expr =
     | Texpr_var(-1, Some x) -> Texpr_var(Map.find x env.var_id_map, Some x)
     | Texpr_var(_, Some x) -> raise (Fatal "id should be negative")
     | Texpr_op(o, el) -> Texpr_op(o, List.map (resolve_expr env) el)
-    | Texpr_func(``params``, ret, s) ->
+    | Texpr_func(args, ret, s) ->
         let update_id env ((id, s), _, _) = value_map s env (Env.add_id env id)
-        let env' = List.fold update_id env ``params``
+        let env' = List.fold update_id env args
         Texpr_func
-            (List.map (fun (x, m, c) -> (x, m, resolve_con env c)) ``params``,
+            (List.map (fun (x, m, c) -> (x, m, resolve_con env c)) args,
              resolve_con env ret, resolve_stmt env' s)
     | Texpr_tuple el -> Texpr_tuple(List.map (resolve_expr env) el)
     | Texpr_ctor(c, sel) ->
@@ -65,8 +65,8 @@ let rec resolve_expr (env : Env.env) expr =
     | Texpr_con c -> Texpr_con(resolve_con env c)
     | Texpr_plam(k, t, e) ->
         Texpr_plam(resolve_kind env k, resolve_iface env t, resolve_expr env e)
-    | Texpr_app(e, ``params``) ->
-        Texpr_app(resolve_expr env e, List.map (resolve_expr env) ``params``)
+    | Texpr_app(e, args) ->
+        Texpr_app(resolve_expr env e, List.map (resolve_expr env) args)
     | Texpr_int _ -> expr
     | Texpr_string _ -> expr
     | Texpr_bool _ -> expr

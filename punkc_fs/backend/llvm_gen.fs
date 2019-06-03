@@ -15,25 +15,32 @@ let rec gen_type mdl ctx t =
     | Bir_pointer_type p -> Llvm.pointer_type (gen_type mdl ctx p)
     | Bir_unit_type -> Llvm.void_type ctx
     | Bir_function_type(r, ts) ->
-        Llvm.function_type (gen_type mdl ctx r)
-            (Array.map (gen_type mdl ctx) ts)
+        Llvm.pointer_type (gen_func_type mdl ctx (r, ts))
     | Bir_struct_type ts ->
         Llvm.struct_type ctx (Array.map (gen_type mdl ctx) ts)
     | Bir_named_struct_type(n, _) -> Llvm.named_struct_type ctx n
     | Bir_var_arg_function_type(r, ts) ->
-        Llvm.var_arg_function_type (gen_type mdl ctx r)
-            (Array.map (gen_type mdl ctx) ts)
+        Llvm.pointer_type (gen_var_arg_func_type mdl ctx (r, ts))
+
+and gen_func_type mdl ctx (r, ts) =
+    Llvm.function_type (gen_type mdl ctx r) (Array.map (gen_type mdl ctx) ts)
+
+and gen_var_arg_func_type mdl ctx (r, ts) =
+    Llvm.var_arg_function_type
+        (gen_type mdl ctx r) (Array.map (gen_type mdl ctx) ts)
 
 let decl_type mdl ctx (_, t) =
     match t with
-    | Bir_named_struct_type(name, _) -> ignore (Llvm.named_struct_type ctx name)
+    | Bir_named_struct_type(name, _) ->
+        Llvm.named_struct_type ctx name |> ignore
     | _ -> raise (BackendError "Only named user struct type can be declared.")
 
 let def_type mdl ctx (_, t) =
     match t with
     | Bir_named_struct_type(name, ts) ->
         let s = Llvm.named_struct_type ctx name
-        ignore (Llvm.struct_set_body s (Array.map (gen_type mdl ctx) !ts) false)
+        Llvm.struct_set_body
+            s (Array.map (gen_type mdl ctx) !ts) false |> ignore
     | _ -> raise (BackendError "Only named user struct type can be generated.")
 
 let decl_function mdl ctx env (name, v) =
@@ -41,8 +48,13 @@ let decl_function mdl ctx env (name, v) =
         let p = Llvm.param f (uint32 i)
         Hashtbl.add env (string id) p
     match v with
-    | (id, Bir_function(_, vs, t, name)) ->
-        let f = Llvm.declare_function name (gen_type mdl ctx t) mdl
+    | (id, Bir_function(_, vs, t, name, attrs)) ->
+        let ft =
+            if attrs.is_var_arg then
+                gen_var_arg_func_type mdl ctx t
+            else
+                gen_func_type mdl ctx t
+        let f = Llvm.declare_function name ft mdl
         Array.iteri (gen_param f) vs
         Hashtbl.add env (string id) f
     | _ -> raise (BackendError "Function value expected for func declaration.")
@@ -98,15 +110,21 @@ let rec gen_value mdl ctx env benv builder (id, v) =
                 Llvm.build_alloca (gen_type mdl ctx t) s builder
             | Bir_function _ ->
                 raise (BackendFatal "Function is not supported in codegen.")
+            | Bir_global_ref _ -> Hashtbl.find env sid
+
         Hashtbl.add env sid value
         value
     | Some v -> v
 
-let gen_global mdl ctx env (name, gid, v) =
+let gen_global mdl ctx env (name, (gid, v)) =
     let empty = Hashtbl.create 0
     let builder = Llvm.builder ctx
-    let g = Llvm.define_global name (gen_value mdl ctx env empty builder v) mdl
-    Hashtbl.add env (string gid) g
+    match v with
+    | Bir_global_ref t ->
+        let g = Llvm.define_global name (Llvm.undef (gen_type mdl ctx t)) mdl
+        Hashtbl.add env (string gid) g
+    | _ ->
+        raise (BackendFatal "global reference")
 
 let decl_block mdl ctx benv func (name, v, ts) =
     let b = Llvm.append_block ctx name func
@@ -120,7 +138,7 @@ let gen_block mdl ctx env benv (name, v, vs) =
 
 let gen_function mdl ctx env (_, f) =
     match f with
-    | (id, Bir_function(bs, _, _, _)) ->
+    | (id, Bir_function(bs, _, _, _, _)) ->
         let func = Hashtbl.find env (string id)
         let benv = Hashtbl.create table_size
         Array.iter (decl_block mdl ctx benv func) !bs

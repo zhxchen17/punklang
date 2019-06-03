@@ -17,13 +17,13 @@ let is_mutable (env : Env.env) e =
 
 let rec check_mut_texp (env : Env.env) (t, e) =
     match e with
-    | Efunc(vmcl, c, s) ->
+    | Efunc(id, vmcl, c, s) ->
         let add_mut (env : Env.env) ((id, _), m, _) =
             match m with
             | Mutable -> Hashtbl.add env.mut_set id ()
             | Immutable -> ()
         List.iter (add_mut env) vmcl
-        (t, Efunc(vmcl, c, check_mut_stmt env s))
+        (t, Efunc(id, vmcl, c, check_mut_stmt env s))
     | _ -> (t, e)
 
 and check_mut_stmt env s =

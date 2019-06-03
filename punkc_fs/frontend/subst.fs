@@ -58,10 +58,11 @@ let rec subst_expr_main m s n l e =
         (subst_con_main (m + i) s n l t, subst_expr_main (m + i) s n l e)
     match e with
     | Evar _ -> e
-    | Efunc(``params``, c, st) ->
+    | Efunc(id, args, c, st) ->
         Efunc
-            (List.map (fun (v, mu, c) -> (v, mu, (subst_con_main m s n l c)))
-                 ``params``, subst_con_main m s n l c,
+            (id,
+             List.map (fun (v, mu, c) -> (v, mu, (subst_con_main m s n l c)))
+                 args, subst_con_main m s n l c,
              subst_stmt_main m s n l st)
     | Eint _
     | Estring _

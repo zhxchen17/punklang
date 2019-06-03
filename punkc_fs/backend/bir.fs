@@ -1,7 +1,6 @@
 module Bir
 
 module Array = FSharp.Compatibility.OCaml.Array
-module Hashtbl = FSharp.Compatibility.OCaml.Hashtbl
 
 exception BirError of string
 
@@ -23,10 +22,14 @@ type bir_op =
     | Icmp_eq
     | Icmp_slt
 
+type bir_func_attrs =
+    { is_var_arg : bool }
+
 type bir_block = string * bir_value * bir_value array ref
 
+// FIXME reduce tuple elements
 and bir_inst =
-    | Bir_function of bir_block array ref * bir_value array * bir_type * string
+    | Bir_function of bir_block array ref * bir_value array * (bir_type * bir_type []) * string * bir_func_attrs
     | Bir_nil
     | Bir_gep of bir_value * bir_value array * string
     | Bir_const_integer of int
@@ -49,6 +52,7 @@ and bir_inst =
     | Bir_cond_br of bir_value * bir_block * bir_block
     | Bir_br of bir_block
     | Bir_alloca of bir_type * string
+    | Bir_global_ref of bir_type
 
 and bir_value = int * bir_inst
 
@@ -56,7 +60,7 @@ type bir_module =
     { bir_module_name : string
       bir_function_decls : (string * bir_value) array ref
       bir_type_decls : (string * bir_type) array ref
-      bir_global_decls : (string * int * bir_value) array ref }
+      bir_global_decls : (string * bir_value) array ref }
 
 type bir_builder =
     { bir_current_block : bir_block ref }
@@ -78,6 +82,12 @@ let function_type tout tin = Bir_function_type(tout, Array.of_list tin)
 let var_arg_function_type tout tin =
     Bir_var_arg_function_type(tout, Array.of_list tin)
 let struct_type ctx ts = Bir_struct_type(Array.of_list ts)
+
+let undef t = (next_id(), Bir_undef t)
+let const_int i = (next_id(), Bir_const_integer i)
+let const_bool b = (next_id(), Bir_const_boolean b)
+let const_nil() = (next_id(), Bir_nil)
+let const_struct ctx ts = (next_id(), Bir_const_struct ts)
 
 let find (a : 'T []) f =
     let rec find (a : 'T []) f n =
@@ -116,13 +126,23 @@ let create_module ctx name =
       bir_global_decls = ref [||] }
 
 let lookup_function name mdl =
-    find !mdl.bir_function_decls (fun (fname, func) -> fname = name)
+    find !mdl.bir_function_decls (fun (fname, _) -> fname = name)
 
-let define_global name t ((_, x) as v) mdl =
+let lookup_global name mdl =
+    find !mdl.bir_global_decls (fun (gname, _) -> gname = name)
+
+let define_global name t mdl =
     let nid = next_id()
+    let gbl = (nid, Bir_global_ref t)
     mdl.bir_global_decls
-    := Array.append !mdl.bir_global_decls [| (name, nid, v) |]
-    (nid, x)
+    := Array.append !mdl.bir_global_decls [| (name, gbl) |]
+    gbl
+
+let declare_global name t mdl =
+    let opt = lookup_global name mdl
+    match opt with
+    | Some x -> x
+    | None -> define_global name t mdl
 
 let make_param t = (next_id(), Bir_var(t, ref "p"))
 
@@ -131,26 +151,26 @@ let set_param_name s v =
     | (_, Bir_var(_, name)) -> name := s
     | _ -> raise (BirError "the given bir value doesn't represents a parameter")
 
-let ``params`` f =
+let get_params f =
     match f with
-    | (_, Bir_function(_, p, _, _)) -> p
+    | (_, Bir_function(_, p, _, _, _)) -> p
     | _ -> raise (BirError "the given bir value is not a function")
 
 let declare_function name ftype mdl =
     match lookup_function name mdl with
     | None ->
         (match ftype with
-         | Bir_function_type(_, tin) ->
+         | Bir_function_type(tr, tin) ->
              let func =
                  (next_id(),
-                  Bir_function(ref [||], Array.map make_param tin, ftype, name))
+                  Bir_function (ref [||], Array.map make_param tin, (tr, tin), name, { is_var_arg = false }))
              mdl.bir_function_decls
              := Array.append !mdl.bir_function_decls [| (name, func) |]
              func
-         | Bir_var_arg_function_type(_, tin) ->
+         | Bir_var_arg_function_type(tr, tin) ->
              let func =
                  (next_id(),
-                  Bir_function(ref [||], Array.map make_param tin, ftype, name))
+                  Bir_function (ref [||], Array.map make_param tin, (tr, tin), name, { is_var_arg = true }))
              mdl.bir_function_decls
              := Array.append !mdl.bir_function_decls [| (name, func) |]
              func
@@ -159,8 +179,8 @@ let declare_function name ftype mdl =
 
 let append_block ctx name func =
     match func with
-    | (_, Bir_function(blks, _, _, _)) ->
-        let tail = (name ^ (string (next_id())), func, ref [||])
+    | (_, Bir_function(blks, _, _, _, _)) ->
+        let tail = (name + (string (next_id())), func, ref [||])
         blks := Array.append !blks [| tail |]
         tail
     | _ -> raise (BirError "function expected in append_block")
@@ -247,18 +267,12 @@ let build_cond_br p then_bb else_bb mdl =
     let inst = Bir_cond_br(p, then_bb, else_bb)
     append_inst (next_id(), inst) !mdl.bir_current_block
 
-let undef t = (next_id(), Bir_undef t)
-let const_int i = (next_id(), Bir_const_integer i)
-let const_bool b = (next_id(), Bir_const_boolean b)
-let const_nil() = (next_id(), Bir_nil)
-let const_struct ctx ts = (next_id(), Bir_const_struct ts)
-
 let rec string_of_inst (_, x) =
     match x with
     | Bir_function _ -> "function"
     | Bir_nil -> "nil"
     | Bir_gep _ -> "gep"
-    | Bir_const_integer i -> "int[" ^ (string i) ^ "]"
+    | Bir_const_integer i -> "int[" + (string i) + "]"
     | Bir_const_boolean _ -> "bool"
     | Bir_const_struct _ -> "struct"
     | Bir_load _ -> "load"
@@ -271,7 +285,7 @@ let rec string_of_inst (_, x) =
     | Bir_insertvalue _ -> "insertvalue"
     | Bir_array_alloca _ -> "array_alloca"
     | Bir_store _ -> "store"
-    | Bir_ret v -> "ret" ^ (string_of_inst v)
+    | Bir_ret v -> "ret" + (string_of_inst v)
     | Bir_undef _ -> "undef"
     | Bir_var _ -> "var"
     | Bir_global_stringptr _ -> "global_stringptr"

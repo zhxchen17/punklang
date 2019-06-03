@@ -17,12 +17,13 @@ type Emitter(mdl, context) =
     let byte_type = byte_type context
     let bool_type = boolean_type context
     let str_type = pointer_type byte_type
-    let void_type = void_type context
+    let unit_type = void_type context
 
     let entry_block =
         let ft = function_type int_type [ int_type ]
         let the_function = declare_function "main" ft mdl
         append_block context "entry" the_function
+
 
     let mutable the_module = mdl
     let mutable main_block = entry_block
@@ -34,18 +35,22 @@ type Emitter(mdl, context) =
         declare_function "printf" ft mdl
 
     let declare_exit mdl =
-        let ft = function_type void_type [ int_type ]
+        let ft = function_type unit_type [ int_type ]
         declare_function "exit" ft mdl
 
-    member private this.get_addr (env : Env.env) ((_, lv) as tlv) =
-        let named_values = env.named_values
-        match lv with
-        | Evar(i, _) -> Hashtbl.find named_values i
-        | Efield(b, (i, Some f)) ->
-            let b = this.get_addr env b
-            assert (i >= 0)
-            build_struct_gep b i f builder
-        | _ -> this.emit_texp env tlv
+    let get_func_name i = "func_" + (string i)
+
+    let get_global_name i = "global_" + (string i)
+
+    member private this.emit_ref (env : Env.env) ((_, v) as tv) =
+        let named_refs = env.named_refs
+        match v with
+        | Evar(id, _) -> Hashtbl.find named_refs id
+        | Efield(b, (idx, Some f)) ->
+            let b = this.emit_ref env b
+            assert (idx >= 0)
+            build_struct_gep b idx f builder
+        | _ -> raise (BackendFatal "rvalue is referenced")
 
     member private this.switch_block blk =
         let ret = current_block
@@ -57,33 +62,35 @@ type Emitter(mdl, context) =
         current_block <- blk
         position_at_end blk builder
 
-    member private this.emit_func (env : Env.env) name (vmcl, cr, body) =
-        let fname =
-            match name with
-            | Some s -> s
-            | None -> Env.new_func_name()
-        (let named_values = env.named_values
-         let ft =
-             function_type (this.emit_con env cr)
-                 (List.map (fun (v, _, c) -> this.emit_con env c) vmcl)
-         let the_function = declare_function fname ft the_module
-
-         let set_param i a =
-             match (Array.of_list vmcl).[i] with
-             | ((id, Some n), _, c) ->
-                 set_param_name n a
-                 Hashtbl.add named_values id a
-             | _ -> raise (BackendError "unnamed param")
-         Array.iteri set_param (``params`` the_function)
-         (* Create a new basic block to start insertion into. *)
-         let block = append_block context "entry" the_function
-         let parent = this.switch_block block
-         let _ = this.emit_stmt env body
-         ignore (build_ret (undef (this.emit_con env cr)) builder)
-         (* Validate the generated code, checking for consistency. *)
-         (* Llvm_analysis.assert_valid_function the_function; *)
-         this.restore_block parent
-         the_function)
+    member private this.emit_func (env : Env.env) (id, vmcl, cr, body) =
+        let (i, _) = id
+        let fname = get_func_name i
+        let named_refs = env.named_refs
+        let ft =
+            function_type (this.emit_con env cr)
+                (List.map (fun (v, _, c) -> this.emit_con env c) vmcl)
+        let the_function = declare_function fname ft the_module
+        let prologue = append_block context "prologue" the_function
+        let parent = this.switch_block prologue
+        let set_param i a =
+            match (Array.ofList vmcl).[i] with
+            | ((id, Some n), _, c) ->
+                set_param_name n a
+                let addr = build_alloca (this.emit_con env c) n builder
+                build_store a addr builder |> ignore
+                Hashtbl.add named_refs id addr
+            | _ -> raise (BackendError "unnamed param")
+        Array.iteri set_param (get_params the_function)
+        (* Create a new basic block to start insertion into. *)
+        let block = append_block context "entry" the_function
+        build_br block builder |> ignore
+        this.switch_block block |> ignore
+        this.emit_stmt env body |> ignore
+        ignore (build_ret (undef (this.emit_con env cr)) builder)
+        (* Validate the generated code, checking for consistency. *)
+        (* Llvm_analysis.assert_valid_function the_function; *)
+        this.restore_block parent
+        the_function
 
     member this.emit_con env c =
         match c with
@@ -96,17 +103,15 @@ type Emitter(mdl, context) =
         | Carrow(cl, cr) ->
             function_type (this.emit_con env cr)
                 (List.map (this.emit_con env) cl)
-        | _ -> raise (BackendFatal("unimplemented type emission " ^ (string c)))
+        | _ -> raise (BackendFatal("unimplemented type emission " + (string c)))
 
     member this.emit_texp (env : Env.env) (c, e) =
-        let named_values = env.named_values
+        let named_refs = env.named_refs
         match e with
         | Evar(id, n) when id >= 0 ->
             try
-                let v = Hashtbl.find named_values id
-                if Hashtbl.mem env.persistent_set id then
-                    build_load v ((Env.mangle_name id) ^ "_ld") builder
-                else v
+                let v = Hashtbl.find named_refs id
+                build_load v ((Env.mangle_name id) + "_ld") builder
             with e ->
                 value_map n () (printf "%s")
                 raise e
@@ -120,20 +125,20 @@ type Emitter(mdl, context) =
         | Eop(o, el) ->
             (match o with
              | Add ->
-                 let lhs = this.emit_texp env (List.nth el 0)
-                 let rhs = this.emit_texp env (List.nth el 1)
+                 let lhs = this.emit_texp env (List.item 0 el)
+                 let rhs = this.emit_texp env (List.item 1 el)
                  build_add lhs rhs builder
              | Multiply ->
-                 let lhs = this.emit_texp env (List.nth el 0)
-                 let rhs = this.emit_texp env (List.nth el 1)
+                 let lhs = this.emit_texp env (List.item 0 el)
+                 let rhs = this.emit_texp env (List.item 1 el)
                  build_mul lhs rhs builder
              | Minus ->
-                 let lhs = this.emit_texp env (List.nth el 0)
-                 let rhs = this.emit_texp env (List.nth el 1)
+                 let lhs = this.emit_texp env (List.item 0 el)
+                 let rhs = this.emit_texp env (List.item 1 el)
                  build_sub lhs rhs builder
              | Equal ->
-                 let lhs = this.emit_texp env (List.nth el 0)
-                 let rhs = this.emit_texp env (List.nth el 1)
+                 let lhs = this.emit_texp env (List.item 0 el)
+                 let rhs = this.emit_texp env (List.item 1 el)
                  build_icmp Icmp_eq lhs rhs builder
              | Cprintf ->
                  let vl = List.map (this.emit_texp env) el
@@ -142,15 +147,15 @@ type Emitter(mdl, context) =
                   | Some printer ->
                       build_call printer (Array.of_list vl) "unit" builder)
              | Lt ->
-                 let lhs = this.emit_texp env (List.nth el 0)
-                 let rhs = this.emit_texp env (List.nth el 1)
+                 let lhs = this.emit_texp env (List.item 0 el)
+                 let rhs = this.emit_texp env (List.item 1 el)
                  build_icmp Icmp_slt lhs rhs builder
              | Idx ->
-                 let lhs = this.emit_texp env (List.nth el 0)
-                 let rhs = this.emit_texp env (List.nth el 1)
+                 let lhs = this.emit_texp env (List.item 0 el)
+                 let rhs = this.emit_texp env (List.item 1 el)
                  let p = build_gep lhs [ rhs ] "idx" builder
                  build_load p "ld" builder)
-        | Efunc(vmcl, cr, body) -> this.emit_func env None (vmcl, cr, body)
+        | Efunc(id, vmcl, cr, body) -> this.emit_func env (id, vmcl, cr, body)
         | Efield(b, (i, Some f)) ->
             assert (i >= 0)
             build_extractvalue (this.emit_texp env b) i f builder
@@ -166,9 +171,7 @@ type Emitter(mdl, context) =
             List.iteri init_elem el
             res
         | Econ(Cnamed((_, Some s), Cprod(cl, _))) ->
-            let ty = named_struct_type context s the_module
-            let _ = struct_set_body ty (List.map (this.emit_con env) cl) false
-            const_nil()
+            raise (BackendFatal "type emission is unsupported!")
         | Ector(Cnamed((_, Some s), _), sel) ->
             (match type_by_name s the_module with
              | None -> raise (BackendError "type not found")
@@ -182,77 +185,36 @@ type Emitter(mdl, context) =
                           builder))
                  let (_, res) = List.fold roll (0, start) (List.map snd sel)
                  res)
-        | Eapp(f, ``params``) ->
+        | Eapp(f, args) ->
             build_call (this.emit_texp env f)
-                (Array.of_list (List.map (this.emit_texp env) ``params``)) "res"
+                (Array.ofList (List.map (this.emit_texp env) args)) "res"
                 builder
         | _ ->
             raise
-                (BackendFatal("expr code emission unimplemented" ^ (string e)))
+                (BackendFatal("expr code emission unimplemented" + (string e)))
 
-    member this.emit_stmt env s =
-        let named_values = env.named_values
+    member this.emit_stmt (env : Env.env) s =
+        let named_refs = env.named_refs
         match s with
         | Sret te ->
             let ret = this.emit_texp env te
             ignore (build_ret ret builder)
         | Sdecl((id, n), m, ((c, _) as te)) ->
             let c' = this.emit_con env c
-            if env.is_top then
-                (let env' = { env with is_top = false }
-                 match te with
-                 | (_, Efunc(vmcl, cr, body)) ->
-                     let func_name = Env.mangle_func_name id
-                     ignore
-                         (this.emit_func env' (Some func_name) (vmcl, cr, body))
-                 | (_, Econ _) ->
-                     let value = this.emit_texp env' te
-                     ignore
-                         (define_global (Env.mangle_name id) Bir_unit_type value
-                              the_module)
-                 | _ ->
-                     Hashtbl.add env.persistent_set id ()
-                     let id' = Env.mangle_name id
-                     let addr = define_global id' c' (undef c') the_module
-                     let value = this.emit_texp env' te
-                     Hashtbl.add named_values id addr
-                     let parent = this.switch_block main_block
-                     ignore (build_store value addr builder)
-                     this.restore_block parent)
-            else
-                (let value = this.emit_texp env te
-                 Hashtbl.add env.persistent_set id ()
-                 let addr =
-                     build_alloca (this.emit_con env c) (Env.mangle_name id)
-                         builder
-                 ignore (build_store value addr builder)
-                 Hashtbl.add named_values id addr)
+            let value = this.emit_texp env te
+            // FIXME build_alloca -> alloc_box
+            let addr =
+                build_alloca (this.emit_con env c) (Env.mangle_name id)
+                    builder
+            ignore (build_store value addr builder)
+            Hashtbl.add named_refs id addr
         | Sblk sl ->
-            if env.is_top then
-                (let _ = declare_exit the_module
-                 let _ = declare_printf the_module
-
-                 let update_global env s =
-                     match s with
-                     | Sdecl((id, _), _, (c, Efunc _)) ->
-                         let c' = this.emit_con env c
-                         let fid' = Env.mangle_func_name id
-                         let func = declare_function fid' c' the_module
-                         Hashtbl.add env.persistent_set id ()
-                         let id' = Env.mangle_name id
-                         let addr = define_global id' c' func the_module
-                         Hashtbl.add named_values id addr
-                     | _ -> ()
-                 List.iter (update_global env) sl
-                 List.iter (this.emit_stmt env) sl
-                 let _ = build_ret (const_int 0) builder
-                 ())
-            else List.iter (this.emit_stmt env) sl
+            List.iter (this.emit_stmt env) sl
         | Sexpr te ->
             let _ = this.emit_texp env te in ()
         | Sasgn(lval, te) ->
             ignore
-                (build_store (this.emit_texp env te) (this.get_addr env lval)
+                (build_store (this.emit_texp env te) (this.emit_ref env lval)
                      builder)
         | Sif(te, s0, s1) ->
             let pred = this.emit_texp env te
@@ -308,6 +270,55 @@ type Emitter(mdl, context) =
             position_at_end new_loop_bb builder
             ignore (build_br new_cond_bb builder)
             position_at_end merge_bb builder
+
+    member private this.decl_type env s =
+        match s with
+        | Sdecl(id, _, (_, Econ(Cnamed((_, Some s), Cprod(cl, _))))) ->
+            named_struct_type context s the_module |> ignore
+        | _ -> ()
+
+    member private this.emit_type env s =
+        match s with
+        | Sdecl(id, _, (_, Econ(Cnamed((_, Some s), Cprod(cl, _))))) ->
+            let ty = named_struct_type context s the_module
+            struct_set_body ty (List.map (this.emit_con env) cl) false |> ignore
+        | _ -> ()
+
+    member private this.decl_func env s =
+        match s with
+        | Sdecl((i, _), _, (c, Efunc _)) ->
+            let t = this.emit_con env c
+            let f = declare_global (get_global_name i) t the_module
+            Hashtbl.add env.named_refs i f
+        | _ -> ()
+
+    member private this.emit_global (env : Env.env) s =
+        match s with
+        | Sdecl((id, n), m, (_, Econ _)) -> ()
+        | Sdecl((id, n), m, ((c, v) as te)) ->
+            let parent = this.switch_block main_block
+            let value = this.emit_texp env te
+            let t = this.emit_con env c
+            let addr = declare_global (get_global_name id) t the_module
+            build_store value addr builder |> ignore
+            this.restore_block parent
+            Hashtbl.add env.named_refs id addr
+        | _ ->
+            this.emit_stmt env s
+
+    member private this.emit_main_prologue (env : Env.env) =
+        let parent = this.switch_block main_block
+        build_ret (const_int 0) builder |> ignore
+        this.restore_block parent
+
+    member this.emit_module env prog =
+        declare_exit the_module |> ignore
+        declare_printf the_module |> ignore
+        Array.iter (this.decl_type env) prog
+        Array.iter (this.emit_type env) prog
+        Array.iter (this.decl_func env) prog
+        Array.iter (this.emit_global env) prog
+        this.emit_main_prologue env
 
     member this.get_module() = the_module
 

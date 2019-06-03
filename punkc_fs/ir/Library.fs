@@ -53,7 +53,7 @@ module Ast =
         | Estring of string
         | Ebool of bool
         | Eop of op * texp list
-        | Efunc of (Var.id * mut * ty) list * ty * stmt
+        | Efunc of Var.id * (Var.id * mut * ty) list * ty * stmt
         | Eapp of texp * texp list
         | Etuple of texp list
         | Ector of ty * (string * texp) list

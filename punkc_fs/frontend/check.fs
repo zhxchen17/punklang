@@ -81,12 +81,13 @@ and infer_expr (env : Env.env) e =
         let roll = (fun c ((id, _), _, ty) -> Env.extend_type c id ty)
         let ctx' = List.fold roll ctx vmcl'
         let s' = check_stmt { env with ctx = ctx' } s
-        ((* equiv ctx c' cr' Ktype; *)
-         cf, Efunc(vmcl', cr', s'))
-    | Texpr_app(e', ``params``) ->
+        (// FIXME Var.newvar can be broken when the function is visited twice
+        (* equiv ctx c' cr' Ktype; *)
+         cf, Efunc(Var.newvar None, vmcl', cr', s'))
+    | Texpr_app(e', args) ->
         (match infer_expr_whnf env e' with
          | (Carrow(dom, cod), e'') ->
-             let p' = List.map2 (fun d p -> check_expr env p d) dom ``params``
+             let p' = List.map2 (fun d p -> check_expr env p d) dom args
              (cod, Eapp(e'', p'))
          | _ -> raise (TypeError "infer_expr"))
     | Texpr_plam(k, t, e') ->
@@ -137,10 +138,10 @@ and infer_expr (env : Env.env) e =
                      else 1 + find x t
 
              let i = find f sl
-             let c' = List.nth cl i
+             let c' = List.item i cl
              (c', Efield(te', (i, Some f)))
          | (c, _) ->
-             raise (Error("unable to access field " ^ f ^ " " ^ (string c))))
+             raise (Error("unable to access field " + f + " " + (string c))))
     | Texpr_field(e', (id, None)) ->
         raise (Fatal "field must have a name to be accessed")
     | Texpr_ctor(Tcon_named((id, _) as n), sel) ->
@@ -155,7 +156,7 @@ and infer_expr (env : Env.env) e =
                          if s' = s then (hd, next)
                          else
                              let i, tl = remove s next in (i, hd :: tl)
-                     | [] -> raise (Error("missing field " ^ s))
+                     | [] -> raise (Error("missing field " + s))
                  match sl with
                  | s' :: next ->
                      let i, tl = remove s' sel in i :: (reorder next tl)
@@ -166,7 +167,7 @@ and infer_expr (env : Env.env) e =
              let sel'' =
                  List.mapi (fun i (s, e) ->
                      let (c', _) as te' = infer_expr env e
-                     equiv ctx c' (List.nth cl i) Ktype
+                     equiv ctx c' (List.item i cl) Ktype
                      (s, te')) sel'
              (c, Ector(c, sel''))
          | _ -> raise (Error "illegal constructor - not found"))
