@@ -1,7 +1,5 @@
 module Elaborate
 
-module Hashtbl = FSharp.Compatibility.OCaml.Hashtbl
-
 open Tir
 open Errors
 
@@ -41,9 +39,9 @@ let rec elab_expr env expr =
     match expr with
     | Texpr_var _ -> expr
     | Texpr_op(o, el) -> Texpr_op(o, List.map (elab_expr env) el)
-    | Texpr_func(``params``, ret, s) ->
+    | Texpr_func(args, ret, s) ->
         Texpr_func
-            (List.map (fun (x, m, c) -> (x, m, elab_con env c)) ``params``,
+            (List.map (fun (x, m, c) -> (x, m, elab_con env c)) args,
              elab_con env ret, elab_stmt env s)
     | Texpr_tuple el -> Texpr_tuple(List.map (elab_expr env) el)
     | Texpr_ctor(c, sel) ->
@@ -52,8 +50,8 @@ let rec elab_expr env expr =
     | Texpr_con c -> Texpr_con(elab_con env c)
     | Texpr_plam(k, t, e) ->
         Texpr_plam(elab_kind env k, elab_iface env t, elab_expr env e)
-    | Texpr_app(e, ``params``) ->
-        Texpr_app(elab_expr env e, List.map (elab_expr env) ``params``)
+    | Texpr_app(e, args) ->
+        Texpr_app(elab_expr env e, List.map (elab_expr env) args)
     | Texpr_int _ -> expr
     | Texpr_string _ -> expr
     | Texpr_bool _ -> expr
@@ -70,7 +68,7 @@ and elab_stmt (env : Env.env) stmt =
     | Tstmt_while(e, s) -> Tstmt_while(elab_expr env e, elab_stmt env s)
     | Tstmt_decl((id, _) as v, m, x, Texpr_con c) ->
         let c' = elab_con env c
-        Hashtbl.add env.elab_con_map id c'
+        env.elab_con_map.Add(id, c')
         Tstmt_decl(v, m, x, Texpr_con c')
     | Tstmt_decl(v, m, x, e) -> Tstmt_decl(v, m, x, elab_expr env e)
     | Tstmt_asgn(p, e) -> Tstmt_asgn(elab_expr env p, elab_expr env e)

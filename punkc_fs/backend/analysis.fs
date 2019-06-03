@@ -1,7 +1,5 @@
 module Analysis
 
-module Hashtbl = FSharp.Compatibility.OCaml.Hashtbl
-
 open ir.Ast
 open Errors
 
@@ -12,7 +10,7 @@ let is_lvalue e =
 
 let is_mutable (env : Env.env) e =
     match e with
-    | Evar(id, _) -> Hashtbl.mem env.mut_set id
+    | Evar(id, _) -> env.mut_set.ContainsKey(id)
     | _ -> false
 
 let rec check_mut_texp (env : Env.env) (t, e) =
@@ -20,7 +18,7 @@ let rec check_mut_texp (env : Env.env) (t, e) =
     | Efunc(id, vmcl, c, s) ->
         let add_mut (env : Env.env) ((id, _), m, _) =
             match m with
-            | Mutable -> Hashtbl.add env.mut_set id ()
+            | Mutable -> env.mut_set.Add(id, ())
             | Immutable -> ()
         List.iter (add_mut env) vmcl
         (t, Efunc(id, vmcl, c, check_mut_stmt env s))
@@ -32,7 +30,7 @@ and check_mut_stmt env s =
     | Sblk(hd :: next) ->
         (match hd with
          | Sdecl((id, _), Mutable, e) ->
-             Hashtbl.add env.mut_set id ()
+             env.mut_set.Add(id, ())
              ()
          | _ -> ())
         (match check_mut_stmt env (Sblk next) with

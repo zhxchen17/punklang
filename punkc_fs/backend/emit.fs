@@ -1,8 +1,5 @@
 module Emit
 
-module Hashtbl = FSharp.Compatibility.OCaml.Hashtbl
-module Array = FSharp.Compatibility.OCaml.Array
-
 open Bir
 open ir.Ast
 open Errors
@@ -43,9 +40,8 @@ type Emitter(mdl, context) =
     let get_global_name i = "global_" + (string i)
 
     member private this.emit_ref (env : Env.env) ((_, v) as tv) =
-        let named_refs = env.named_refs
         match v with
-        | Evar(id, _) -> Hashtbl.find named_refs id
+        | Evar(id, _) -> env.named_refs.Item(id)
         | Efield(b, (idx, Some f)) ->
             let b = this.emit_ref env b
             assert (idx >= 0)
@@ -65,7 +61,6 @@ type Emitter(mdl, context) =
     member private this.emit_func (env : Env.env) (id, vmcl, cr, body) =
         let (i, _) = id
         let fname = get_func_name i
-        let named_refs = env.named_refs
         let ft =
             function_type (this.emit_con env cr)
                 (List.map (fun (v, _, c) -> this.emit_con env c) vmcl)
@@ -78,7 +73,7 @@ type Emitter(mdl, context) =
                 set_param_name n a
                 let addr = build_alloca (this.emit_con env c) n builder
                 build_store a addr builder |> ignore
-                Hashtbl.add named_refs id addr
+                env.named_refs.Add(id, addr)
             | _ -> raise (BackendError "unnamed param")
         Array.iteri set_param (get_params the_function)
         (* Create a new basic block to start insertion into. *)
@@ -106,11 +101,10 @@ type Emitter(mdl, context) =
         | _ -> raise (BackendFatal("unimplemented type emission " + (string c)))
 
     member this.emit_texp (env : Env.env) (c, e) =
-        let named_refs = env.named_refs
         match e with
         | Evar(id, n) when id >= 0 ->
             try
-                let v = Hashtbl.find named_refs id
+                let v = env.named_refs.Item(id)
                 build_load v ((Env.mangle_name id) + "_ld") builder
             with e ->
                 value_map n () (printf "%s")
@@ -145,7 +139,7 @@ type Emitter(mdl, context) =
                  (match lookup_function "printf" the_module with
                   | None -> raise (BackendFatal "printf should be declared")
                   | Some printer ->
-                      build_call printer (Array.of_list vl) "unit" builder)
+                      build_call printer (Array.ofList vl) "unit" builder)
              | Lt ->
                  let lhs = this.emit_texp env (List.item 0 el)
                  let rhs = this.emit_texp env (List.item 1 el)
@@ -194,7 +188,6 @@ type Emitter(mdl, context) =
                 (BackendFatal("expr code emission unimplemented" + (string e)))
 
     member this.emit_stmt (env : Env.env) s =
-        let named_refs = env.named_refs
         match s with
         | Sret te ->
             let ret = this.emit_texp env te
@@ -207,7 +200,7 @@ type Emitter(mdl, context) =
                 build_alloca (this.emit_con env c) (Env.mangle_name id)
                     builder
             ignore (build_store value addr builder)
-            Hashtbl.add named_refs id addr
+            env.named_refs.Add(id, addr)
         | Sblk sl ->
             List.iter (this.emit_stmt env) sl
         | Sexpr te ->
@@ -289,7 +282,7 @@ type Emitter(mdl, context) =
         | Sdecl((i, _), _, (c, Efunc _)) ->
             let t = this.emit_con env c
             let f = declare_global (get_global_name i) t the_module
-            Hashtbl.add env.named_refs i f
+            env.named_refs.Add(i, f)
         | _ -> ()
 
     member private this.emit_global (env : Env.env) s =
@@ -302,7 +295,9 @@ type Emitter(mdl, context) =
             let addr = declare_global (get_global_name id) t the_module
             build_store value addr builder |> ignore
             this.restore_block parent
-            Hashtbl.add env.named_refs id addr
+            // TODO migrate to TryAdd for dotnet core 3.0
+            if not (env.named_refs.ContainsKey(id)) then
+                env.named_refs.Add(id, addr)
         | _ ->
             this.emit_stmt env s
 

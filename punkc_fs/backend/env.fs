@@ -1,16 +1,15 @@
 module Env
 
-module Hashtbl = FSharp.Compatibility.OCaml.Hashtbl
-
 open Config
+open System.Collections.Generic
 
 type env =
-    { mut_set : Hashtbl.t<int, unit>
-      named_refs : Hashtbl.t<int, Bir.bir_value> }
+    { mut_set : Dictionary<int, unit>
+      named_refs : Dictionary<int, Bir.bir_value> }
 
 let empty_env() =
-    { mut_set = Hashtbl.create table_size
-      named_refs = Hashtbl.create table_size }
+    { mut_set = new Dictionary<_, _>()
+      named_refs = new Dictionary<_, _>() }
 
 let new_func_name() =
     let (id, _) = Var.newvar None

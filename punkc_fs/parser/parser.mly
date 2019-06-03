@@ -120,7 +120,7 @@ expr:
   | mut = option(VAR); x = ID; COLON; ty = con { (Var.newvar (Some x), (if Option.is_some mut then Tmut else Timm), ty) }
 
 stmt:
-  | FUNC; fname = ID; LPAREN; params = separated_list(COMMA, param); RPAREN; COLON; tr = con; LBRACE; sl = list(stmt); RBRACE { Tstmt_decl (Var.newvar (Some fname), Timm, (Some (Tcon_arrow (List.map (fun (_, _, x) -> x) params, tr))), Texpr_func (params, tr, Tstmt_blk sl)) }
+  | FUNC; fname = ID; LPAREN; args = separated_list(COMMA, param); RPAREN; COLON; tr = con; LBRACE; sl = list(stmt); RBRACE { Tstmt_decl (Var.newvar (Some fname), Timm, (Some (Tcon_arrow (List.map (fun (_, _, x) -> x) args, tr))), Texpr_func (args, tr, Tstmt_blk sl)) }
   | LBRACE; stmts = list(stmt); RBRACE { Tstmt_blk stmts }
   | RETURN; e = expr; SEMICOLON { Tstmt_ret e }
   | LET; x = ID; COLON; ty = con; ASSIGN; e = expr; SEMICOLON { Tstmt_decl (Var.newvar (Some x), Timm, Some ty, e) }

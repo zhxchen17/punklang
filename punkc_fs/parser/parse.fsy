@@ -221,8 +221,8 @@ let args =     ( xs ) in
 stmt:
   FUNC ID LPAREN loption_separated_nonempty_list_COMMA_param__ RPAREN COLON con LBRACE list_stmt_ RBRACE
     {let (_1, fname, _3, xs, _5, _6, tr, _8, sl, _10) = ((), $2, (), $4, (), (), $7, (), $9, ()) in
-let params =     ( xs ) in
-                                                                                                                              ( Tstmt_decl (Var.newvar (Some fname), Timm, (Some (Tcon_arrow (List.map (fun (_, _, x) -> x) params, tr))), Texpr_func (params, tr, Tstmt_blk sl)) )}
+let args =     ( xs ) in
+                                                                                                                            ( Tstmt_decl (Var.newvar (Some fname), Timm, (Some (Tcon_arrow (List.map (fun (_, _, x) -> x) args, tr))), Texpr_func (args, tr, Tstmt_blk sl)) )}
 | LBRACE list_stmt_ RBRACE
     {let (_1, stmts, _3) = ((), $2, ()) in
                                        ( Tstmt_blk stmts )}

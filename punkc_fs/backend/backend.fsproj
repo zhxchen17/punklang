@@ -18,7 +18,6 @@
 
 
   <ItemGroup>
-    <PackageReference Include="FSharp.Compatibility.OCaml" Version="0.1.14" />
     <PackageReference Include="LLVMSharp" Version="5.0.0" />
   </ItemGroup>
 

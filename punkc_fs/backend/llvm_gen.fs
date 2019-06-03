@@ -1,8 +1,6 @@
 module Llvm_gen
 
-module Hashtbl = FSharp.Compatibility.OCaml.Hashtbl
-module Array = FSharp.Compatibility.OCaml.Array
-
+open System.Collections.Generic
 open Bir
 open Errors
 open Config
@@ -43,10 +41,10 @@ let def_type mdl ctx (_, t) =
             s (Array.map (gen_type mdl ctx) !ts) false |> ignore
     | _ -> raise (BackendError "Only named user struct type can be generated.")
 
-let decl_function mdl ctx env (name, v) =
+let decl_function mdl ctx (env : Dictionary<_, _>) (name, v) =
     let gen_param f i (id, _) =
         let p = Llvm.param f (uint32 i)
-        Hashtbl.add env (string id) p
+        env.Add(string id, p)
     match v with
     | (id, Bir_function(_, vs, t, name, attrs)) ->
         let ft =
@@ -56,7 +54,7 @@ let decl_function mdl ctx env (name, v) =
                 gen_func_type mdl ctx t
         let f = Llvm.declare_function name ft mdl
         Array.iteri (gen_param f) vs
-        Hashtbl.add env (string id) f
+        env.Add(string id, f)
     | _ -> raise (BackendError "Function value expected for func declaration.")
 
 let gen_op o =
@@ -64,10 +62,11 @@ let gen_op o =
     | Icmp_eq -> Llvm.Icmp.Eq
     | Icmp_slt -> Llvm.Icmp.Slt
 
-let rec gen_value mdl ctx env benv builder (id, v) =
+let rec gen_value mdl ctx
+    (env : Dictionary<_, _>) (benv : Dictionary<_, _>) builder (id, v) =
     let sid = string id
-    match Hashtbl.tryfind env sid with
-    | None ->
+    match env.TryGetValue(sid) with
+    | false, _ ->
         let gen = gen_value mdl ctx env benv builder
 
         let value =
@@ -103,44 +102,44 @@ let rec gen_value mdl ctx env benv builder (id, v) =
             | Bir_global_stringptr(s, n) ->
                 Llvm.build_global_stringptr s n builder
             | Bir_cond_br(p, (b0, _, _), (b1, _, _)) ->
-                Llvm.build_cond_br (gen p) (Hashtbl.find benv b0)
-                    (Hashtbl.find benv b1) builder
-            | Bir_br(b, _, _) -> Llvm.build_br (Hashtbl.find benv b) builder
+                Llvm.build_cond_br (gen p) (benv.Item(b0))
+                    (benv.Item(b1)) builder
+            | Bir_br(b, _, _) -> Llvm.build_br (benv.Item(b)) builder
             | Bir_alloca(t, s) ->
                 Llvm.build_alloca (gen_type mdl ctx t) s builder
             | Bir_function _ ->
                 raise (BackendFatal "Function is not supported in codegen.")
-            | Bir_global_ref _ -> Hashtbl.find env sid
+            | Bir_global_ref _ -> env.Item(sid)
 
-        Hashtbl.add env sid value
+        env.Add(sid, value)
         value
-    | Some v -> v
+    | true, v -> v
 
-let gen_global mdl ctx env (name, (gid, v)) =
-    let empty = Hashtbl.create 0
+let gen_global mdl ctx (env : Dictionary<_, _>) (name, (gid, v)) =
     let builder = Llvm.builder ctx
     match v with
     | Bir_global_ref t ->
         let g = Llvm.define_global name (Llvm.undef (gen_type mdl ctx t)) mdl
-        Hashtbl.add env (string gid) g
+        env.Add(string gid, g)
     | _ ->
         raise (BackendFatal "global reference")
 
-let decl_block mdl ctx benv func (name, v, ts) =
+let decl_block mdl ctx (benv : Dictionary<_, _>) func (name, v, ts) =
     let b = Llvm.append_block ctx name func
-    Hashtbl.add benv name b
+    benv.Add(name, b)
 
-let gen_block mdl ctx env benv (name, v, vs) =
-    let b = Hashtbl.find benv name
+let gen_block mdl ctx
+    (env : Dictionary<_, _>) (benv : Dictionary<_, _>) (name, v, vs) =
+    let b = benv.Item(name)
     let builder = Llvm.builder ctx
     Llvm.position_at_end b builder
     ignore (Array.map (gen_value mdl ctx env benv builder) !vs)
 
-let gen_function mdl ctx env (_, f) =
+let gen_function mdl ctx (env : Dictionary<_, _>) (_, f) =
     match f with
     | (id, Bir_function(bs, _, _, _, _)) ->
-        let func = Hashtbl.find env (string id)
-        let benv = Hashtbl.create table_size
+        let func = env.Item(string id)
+        let benv = new Dictionary<string, LLVMSharp.LLVMBasicBlockRef>()
         Array.iter (decl_block mdl ctx benv func) !bs
         Array.iter (gen_block mdl ctx env benv) !bs
     | _ -> raise (BackendError "Code generation on non-function values.")
@@ -148,7 +147,7 @@ let gen_function mdl ctx env (_, f) =
 let gen_module mdl =
     let ctx = Llvm.create_context()
     let llvm_mdl = Llvm.create_module ctx mdl.bir_module_name
-    let env = Hashtbl.create table_size
+    let env = new Dictionary<string, Llvm.llvalue>()
     Array.iter (decl_type llvm_mdl ctx) !mdl.bir_type_decls
     Array.iter (def_type llvm_mdl ctx) !mdl.bir_type_decls
     Array.iter (decl_function llvm_mdl ctx env) !mdl.bir_function_decls

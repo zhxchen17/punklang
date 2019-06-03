@@ -907,8 +907,8 @@ let _fsyacc_reductions ()  =    [|
                    (
 # 223 "/home/zhxchen17/punklang/punkc_fs/parser/parse.fsy"
                           let (_1, fname, _3, xs, _5, _6, tr, _8, sl, _10) = ((), _2, (), _4, (), (), _7, (), _9, ()) in
-                     let params =     ( xs ) in
-                                                                                                                                                   ( Tstmt_decl (Var.newvar (Some fname), Timm, (Some (Tcon_arrow (List.map (fun (_, _, x) -> x) params, tr))), Texpr_func (params, tr, Tstmt_blk sl)) )
+                     let args =     ( xs ) in
+                                                                                                                                                 ( Tstmt_decl (Var.newvar (Some fname), Timm, (Some (Tcon_arrow (List.map (fun (_, _, x) -> x) args, tr))), Texpr_func (args, tr, Tstmt_blk sl)) )
                    )
 # 223 "/home/zhxchen17/punklang/punkc_fs/parser/parse.fsy"
                  : 'stmt));

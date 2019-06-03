@@ -1,7 +1,5 @@
 module Bir
 
-module Array = FSharp.Compatibility.OCaml.Array
-
 exception BirError of string
 
 type bir_context =
@@ -78,10 +76,10 @@ let byte_type ctx = Bir_byte_type
 let boolean_type ctx = Bir_boolean_type
 let pointer_type t = Bir_pointer_type t
 let void_type ctx = Bir_unit_type
-let function_type tout tin = Bir_function_type(tout, Array.of_list tin)
+let function_type tout tin = Bir_function_type(tout, Array.ofList tin)
 let var_arg_function_type tout tin =
-    Bir_var_arg_function_type(tout, Array.of_list tin)
-let struct_type ctx ts = Bir_struct_type(Array.of_list ts)
+    Bir_var_arg_function_type(tout, Array.ofList tin)
+let struct_type ctx ts = Bir_struct_type(Array.ofList ts)
 
 let undef t = (next_id(), Bir_undef t)
 let const_int i = (next_id(), Bir_const_integer i)
@@ -89,8 +87,8 @@ let const_bool b = (next_id(), Bir_const_boolean b)
 let const_nil() = (next_id(), Bir_nil)
 let const_struct ctx ts = (next_id(), Bir_const_struct ts)
 
-let find (a : 'T []) f =
-    let rec find (a : 'T []) f n =
+let find (a : ('a * 'b) []) f =
+    let rec find (a : ('a * 'b) []) f n =
         if f a.[n] then
             match a.[n] with
             | (_, x) -> Some x
@@ -111,7 +109,7 @@ let named_struct_type ctx name mdl =
 
 let struct_set_body t ts packed =
     match t with
-    | Bir_named_struct_type(_, fields) -> fields := Array.of_list ts
+    | Bir_named_struct_type(_, fields) -> fields := Array.ofList ts
     | _ -> raise (BirError "named_struct_type expected in struct_set_body()")
 
 let struct_element_types ty =
@@ -204,7 +202,7 @@ let build_struct_gep b i f mdl =
     append_inst (next_id(), inst) !mdl.bir_current_block
 
 let build_gep b indices name mdl =
-    let inst = Bir_gep(b, Array.of_list indices, name)
+    let inst = Bir_gep(b, Array.ofList indices, name)
     append_inst (next_id(), inst) !mdl.bir_current_block
 
 let build_load v name mdl =
@@ -266,29 +264,3 @@ let build_br b mdl =
 let build_cond_br p then_bb else_bb mdl =
     let inst = Bir_cond_br(p, then_bb, else_bb)
     append_inst (next_id(), inst) !mdl.bir_current_block
-
-let rec string_of_inst (_, x) =
-    match x with
-    | Bir_function _ -> "function"
-    | Bir_nil -> "nil"
-    | Bir_gep _ -> "gep"
-    | Bir_const_integer i -> "int[" + (string i) + "]"
-    | Bir_const_boolean _ -> "bool"
-    | Bir_const_struct _ -> "struct"
-    | Bir_load _ -> "load"
-    | Bir_add _ -> "add"
-    | Bir_mul _ -> "mul"
-    | Bir_sub _ -> "sub"
-    | Bir_icmp _ -> "icmp"
-    | Bir_call _ -> "call"
-    | Bir_extractvalue _ -> "extractvalue"
-    | Bir_insertvalue _ -> "insertvalue"
-    | Bir_array_alloca _ -> "array_alloca"
-    | Bir_store _ -> "store"
-    | Bir_ret v -> "ret" + (string_of_inst v)
-    | Bir_undef _ -> "undef"
-    | Bir_var _ -> "var"
-    | Bir_global_stringptr _ -> "global_stringptr"
-    | Bir_cond_br _ -> "cond_br"
-    | Bir_br _ -> "br"
-    | Bir_alloca _ -> "alloca"
