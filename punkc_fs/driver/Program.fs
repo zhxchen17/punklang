@@ -8,8 +8,8 @@ open LLVMSharp
 let main argv =
     let frontend = new Frontend()
     let str = File.ReadAllText argv.[0]
-    let stmts = frontend.compile str
+    let mdl = frontend.compile str
     let backend = new Backend()
-    let llvm_mdl = backend.compile stmts
+    let llvm_mdl = backend.compile mdl
     LLVM.PrintModuleToFile(llvm_mdl, argv.[1]) |> ignore
     0

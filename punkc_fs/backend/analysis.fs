@@ -16,10 +16,7 @@ let is_mutable (env : Env.env) e =
 let rec check_mut_texp (env : Env.env) (t, e) =
     match e with
     | Efunc(id, vmcl, c, s) ->
-        let add_mut (env : Env.env) ((id, _), m, _) =
-            match m with
-            | Mutable -> env.mut_set.Add(id, ())
-            | Immutable -> ()
+        let add_mut (env : Env.env) ((id, _), _) = env.mut_set.Add(id, ())
         List.iter (add_mut env) vmcl
         (t, Efunc(id, vmcl, c, check_mut_stmt env s))
     | _ -> (t, e)

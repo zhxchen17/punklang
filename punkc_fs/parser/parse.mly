@@ -117,11 +117,11 @@ separated_nonempty_list_COMMA_expr_:
 separated_nonempty_list_COMMA_param_:
   option_VAR_ ID COLON con
     {let (mut, x, _3, ty) = ($1, $2, (), $4) in
-let x =                                                ( (Var.newvar (Some x), (if Option.is_some mut then Tmut else Timm), ty) ) in
+let x =                                                ( (Var.newvar (Some x), ty) ) in
     ( [ x ] )}
 | option_VAR_ ID COLON con COMMA separated_nonempty_list_COMMA_param_
     {let (mut, x, _3, ty, _2, xs) = ($1, $2, (), $4, (), $6) in
-let x =                                                ( (Var.newvar (Some x), (if Option.is_some mut then Tmut else Timm), ty) ) in
+let x =                                                ( (Var.newvar (Some x), ty) ) in
     ( x :: xs )}
 
 separated_nonempty_list_COMMA_separated_pair_ID_COLON_con__:
@@ -221,7 +221,7 @@ stmt:
   FUNC ID LPAREN loption_separated_nonempty_list_COMMA_param__ RPAREN COLON con LBRACE list_stmt_ RBRACE
     {let (_1, fname, _3, xs, _5, _6, tr, _8, sl, _10) = ((), $2, (), $4, (), (), $7, (), $9, ()) in
 let args =     ( xs ) in
-                                                                                                                            ( Tstmt_decl (Var.newvar (Some fname), Timm, (Some (Tcon_arrow (List.map (fun (_, _, x) -> x) args, tr))), Texpr_func (args, tr, Tstmt_blk sl)) )}
+                                                                                                                            ( Tstmt_decl (Var.newvar (Some fname), Timm, (Some (Tcon_arrow (List.map (fun (_, x) -> x) args, tr))), Texpr_func (args, tr, Tstmt_blk sl)) )}
 | LBRACE list_stmt_ RBRACE
     {let (_1, stmts, _3) = ((), $2, ()) in
                                        ( Tstmt_blk stmts )}

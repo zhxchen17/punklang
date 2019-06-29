@@ -1,7 +1,7 @@
 module Emit
 
 open Bir
-open ir.Ast
+open ir.Ir
 open Errors
 
 let value_map x d f =
@@ -20,7 +20,6 @@ type Emitter(mdl, context) =
         let ft = function_type int_type [ int_type ]
         let the_function = declare_function "main" ft mdl
         append_block context "entry" the_function
-
 
     let mutable the_module = mdl
     let mutable main_block = entry_block
@@ -63,13 +62,13 @@ type Emitter(mdl, context) =
         let fname = get_func_name i
         let ft =
             function_type (this.emit_con env cr)
-                (List.map (fun (v, _, c) -> this.emit_con env c) vmcl)
+                (List.map (fun (_, c) -> this.emit_con env c) vmcl)
         let the_function = declare_function fname ft the_module
         let prologue = append_block context "prologue" the_function
         let parent = this.switch_block prologue
         let set_param i a =
             match (Array.ofList vmcl).[i] with
-            | ((id, Some n), _, c) ->
+            | ((id, Some n), c) ->
                 set_param_name n a
                 let addr = build_alloca (this.emit_con env c) n builder
                 build_store a addr builder |> ignore
@@ -92,9 +91,12 @@ type Emitter(mdl, context) =
         | Cint -> int_type
         | Cbool -> bool_type
         | Cstring -> str_type
-        | Cnamed(v, c) -> this.emit_con env c
+        | Cstruct(id, _) ->
+            let stl = Env.lookup_struct env id
+            let cl = List.map snd stl
+            struct_type context (List.map (this.emit_con env) cl)
         | Carray c -> pointer_type (this.emit_con env c)
-        | Cprod(cl, _) -> struct_type context (List.map (this.emit_con env) cl)
+        | Cprod cl -> struct_type context (List.map (this.emit_con env) cl)
         | Carrow(cl, cr) ->
             function_type (this.emit_con env cr)
                 (List.map (this.emit_con env) cl)
@@ -153,20 +155,20 @@ type Emitter(mdl, context) =
         | Efield(b, (i, Some f)) ->
             assert (i >= 0)
             build_extractvalue (this.emit_texp env b) i f builder
-        | Earray(c, el) ->
-            let c' = this.emit_con env c
-            let l = const_int (List.length el)
-            let res = build_array_alloca c' l "array_cns" builder
-
-            let init_elem i e' =
-                let gep = build_gep res [ const_int i ] "gep" builder
-                let _ = build_store (this.emit_texp env e') gep builder
-                ()
-            List.iteri init_elem el
-            res
-        | Econ(Cnamed((_, Some s), Cprod(cl, _))) ->
-            raise (BackendFatal "type emission is unsupported!")
-        | Ector(Cnamed((_, Some s), _), sel) ->
+        | Earray(el) ->
+            match c with
+            | Carray elem_ty ->
+                let c' = this.emit_con env elem_ty
+                let l = const_int (List.length el)
+                let res = build_array_alloca c' l "array_cns" builder
+                let init_elem i e' =
+                    let gep = build_gep res [ const_int i ] "gep" builder
+                    let _ = build_store (this.emit_texp env e') gep builder
+                    ()
+                List.iteri init_elem el
+                res
+            | _ -> raise (BackendFatal "TODO Emitter.emit_expr")
+        | Ector(Cstruct(_, Some s), sel) ->
             (match type_by_name s the_module with
              | None -> raise (BackendError "type not found")
              | Some ty ->
@@ -192,7 +194,7 @@ type Emitter(mdl, context) =
         | Sret te ->
             let ret = this.emit_texp env te
             ignore (build_ret ret builder)
-        | Sdecl((id, n), m, ((c, _) as te)) ->
+        | Sdecl((id, n), ((c, _) as te)) ->
             let c' = this.emit_con env c
             let value = this.emit_texp env te
             // FIXME build_alloca -> alloc_box
@@ -264,31 +266,34 @@ type Emitter(mdl, context) =
             ignore (build_br new_cond_bb builder)
             position_at_end merge_bb builder
 
-    member private this.decl_type env s =
-        match s with
-        | Sdecl(id, _, (_, Econ(Cnamed((_, Some s), Cprod(cl, _))))) ->
-            named_struct_type context s the_module |> ignore
-        | _ -> ()
-
-    member private this.emit_type env s =
-        match s with
-        | Sdecl(id, _, (_, Econ(Cnamed((_, Some s), Cprod(cl, _))))) ->
-            let ty = named_struct_type context s the_module
-            struct_set_body ty (List.map (this.emit_con env) cl) false |> ignore
-        | _ -> ()
-
     member private this.decl_func env s =
         match s with
-        | Sdecl((i, _), _, (c, Efunc _)) ->
+        | Sdecl((i, n), (c, Efunc _)) ->
             let t = this.emit_con env c
             let f = declare_global (get_global_name i) t the_module
             env.named_refs.Add(i, f)
         | _ -> ()
 
+    member this.scan_header (env : Env.env) = function
+        | ((i, Some s), Dstruct(_, stl)) ->
+            named_struct_type context s the_module |> ignore
+            env.struct_def.Add(i, stl)
+        | (_, Dstruct _) -> raise (BackendFatal "TODO Emitter.scan_header")
+        | (_, Diface _) -> raise (BackendFatal "TODO Emitter.scan_header")
+        | (_, Dalias _) -> raise (BackendFatal "TODO Emitter.scan_header")
+
+    member this.emit_header (env : Env.env) = function
+        | ((_, Some s), Dstruct(_, stl)) ->
+            let ty = named_struct_type context s the_module
+            let tl = List.map snd stl
+            struct_set_body ty (List.map (this.emit_con env) tl) false |> ignore
+        | (_, Dstruct _) -> raise (BackendFatal "TODO Emitter.scan_header")
+        | (_, Diface _) -> raise (BackendFatal "TODO Emitter.scan_header")
+        | (_, Dalias _) -> raise (BackendFatal "TODO Emitter.scan_header")
+
     member private this.emit_global (env : Env.env) s =
         match s with
-        | Sdecl((id, n), m, (_, Econ _)) -> ()
-        | Sdecl((id, n), m, ((c, v) as te)) ->
+        | Sdecl((id, n), ((c, v) as te)) ->
             let parent = this.switch_block main_block
             let value = this.emit_texp env te
             let t = this.emit_con env c
@@ -306,13 +311,13 @@ type Emitter(mdl, context) =
         build_ret (const_int 0) builder |> ignore
         this.restore_block parent
 
-    member this.emit_module env prog =
+    member this.emit_module env (tt, prog) =
         declare_exit the_module |> ignore
         declare_printf the_module |> ignore
-        Array.iter (this.decl_type env) prog
-        Array.iter (this.emit_type env) prog
-        Array.iter (this.decl_func env) prog
-        Array.iter (this.emit_global env) prog
+        List.iter (this.scan_header env) tt
+        List.iter (this.emit_header env) tt
+        List.iter (this.decl_func env) prog
+        List.iter (this.emit_global env) prog
         this.emit_main_prologue env
 
     member this.get_module() = the_module

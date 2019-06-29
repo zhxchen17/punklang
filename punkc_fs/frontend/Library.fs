@@ -39,14 +39,10 @@ module Frontend =
             | _ -> raise (Fatal "failed to unpack resolved program")
 
         member this.elaborate prog =
-            match Elaborate.elab_stmt env (Tstmt_blk prog) with
-            | Tstmt_blk sl -> sl
-            | _ -> raise (Fatal "failed to unpack elaborated program")
+            Elaborate.elab_module env prog
 
         member this.type_check prog =
-            match Check.check_stmt env (Tstmt_blk prog) with
-            | Sblk sl -> sl
-            | _ -> raise (Fatal "failed to unpack type checked program")
+            Check.check_module env prog
 
         member this.compile code =
             code

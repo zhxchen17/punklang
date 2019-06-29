@@ -16,7 +16,7 @@
     <Compile Include="resolve.fs" />
     <Compile Include="elaborate.fs" />
     <Compile Include="attrs.fs" />
-    <Compile Include="equiv.fs" />
+    <Compile Include="typing.fs" />
     <Compile Include="check.fs" />
     <Compile Include="Library.fs" />
   </ItemGroup>
