@@ -32,3 +32,15 @@
 *.app
 
 .DS_Store
+
+# Project specific
+frontend/bin/
+frontend/obj/
+ir/bin/
+ir/obj/
+driver/bin/
+driver/obj/
+backend/bin/
+backend/obj/
+output/
+.vs/

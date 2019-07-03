@@ -1,5 +1,0 @@
-S src
-PKG core
-PKG llvm
-PKG oUnit
-B _build/src
