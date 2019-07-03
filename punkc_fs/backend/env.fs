@@ -6,7 +6,7 @@ open Errors
 
 type env =
     { mut_set : Dictionary<int, unit>
-      named_refs : Dictionary<int, Bir.bir_value>
+      named_refs : Dictionary<int, Bir.BirValue>
       struct_def : Dictionary<int, (string * ir.Ir.ty) list> }
 
 let emptyEnv() =

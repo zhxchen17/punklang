@@ -10,29 +10,29 @@ let valueMap x d f =
     | None -> d
 
 type Emitter(mdl, context) =
-    let intType = integer_type context
-    let byteType = byte_type context
-    let boolType = boolean_type context
-    let strType = pointer_type byteType
-    let unitType = void_type context
+    let intType = integerType context
+    let byteType = byteType context
+    let boolType = booleanType context
+    let strType = pointerType byteType
+    let unitType = voidType context
 
     let entryBlock =
-        let ft = function_type intType [ intType ]
-        let theFunction = declare_function "main" ft mdl
-        append_block context "entry" theFunction
+        let ft = functionType intType [ intType ]
+        let theFunction = declareFunction "main" ft mdl
+        appendBlock context "entry" theFunction
 
     let mutable theModule = mdl
     let mutable mainBlock = entryBlock
-    let mutable builder = make_builder context
+    let mutable builder = makeBuilder context
     let mutable currentBlock = entryBlock
 
     let declarePrintf mdl =
-        let ft = var_arg_function_type intType [ pointer_type byteType ]
-        declare_function "printf" ft mdl
+        let ft = varArgFunctionType intType [ pointerType byteType ]
+        declareFunction "printf" ft mdl
 
     let declareExit mdl =
-        let ft = function_type unitType [ intType ]
-        declare_function "exit" ft mdl
+        let ft = functionType unitType [ intType ]
+        declareFunction "exit" ft mdl
 
     let getFuncName i = "func_" + (string i)
 
@@ -44,43 +44,43 @@ type Emitter(mdl, context) =
         | Efield(b, (idx, Some f)) ->
             let b = this.EmitRef env b
             assert (idx >= 0)
-            build_struct_gep b idx f builder
+            buildStructGEP b idx f builder
         | _ -> raise (BackendFatal "rvalue is referenced")
 
     member private this.SwitchBlock blk =
         let ret = currentBlock
         currentBlock <- blk
-        position_at_end blk builder
+        positionAtEnd blk builder
         ret
 
     member private this.RestoreBlock blk =
         currentBlock <- blk
-        position_at_end blk builder
+        positionAtEnd blk builder
 
     member private this.EmitFunc (env : Env.env) (id, vmcl, cr, body) =
         let (i, _) = id
         let fname = getFuncName i
         let ft =
-            function_type (this.EmitCon env cr)
+            functionType (this.EmitCon env cr)
                 (List.map (fun (_, c) -> this.EmitCon env c) vmcl)
-        let theFunction = declare_function fname ft theModule
-        let prologue = append_block context "prologue" theFunction
+        let theFunction = declareFunction fname ft theModule
+        let prologue = appendBlock context "prologue" theFunction
         let parent = this.SwitchBlock prologue
         let setParam i a =
             match (Array.ofList vmcl).[i] with
             | ((id, Some n), c) ->
-                set_param_name n a
-                let addr = build_alloca (this.EmitCon env c) n builder
-                build_store a addr builder |> ignore
+                setParamName n a
+                let addr = buildAlloca (this.EmitCon env c) n builder
+                buildStore a addr builder |> ignore
                 env.named_refs.Add(id, addr)
             | _ -> raise (BackendError "unnamed param")
         Array.iteri setParam (get_params theFunction)
         (* Create a new basic block to start insertion into. *)
-        let block = append_block context "entry" theFunction
-        build_br block builder |> ignore
+        let block = appendBlock context "entry" theFunction
+        buildBr block builder |> ignore
         this.SwitchBlock block |> ignore
         this.EmitStmt env body |> ignore
-        ignore (build_ret (undef (this.EmitCon env cr)) builder)
+        ignore (buildRet (undef (this.EmitCon env cr)) builder)
         (* Validate the generated code, checking for consistency. *)
         (* Llvm_analysis.assert_valid_function the_function; *)
         this.RestoreBlock parent
@@ -94,11 +94,11 @@ type Emitter(mdl, context) =
         | Cstruct(id, _) ->
             let stl = Env.lookupStruct env id
             let cl = List.map snd stl
-            struct_type context (List.map (this.EmitCon env) cl)
-        | Carray c -> pointer_type (this.EmitCon env c)
+            structType context (List.map (this.EmitCon env) cl)
+        | Carray c -> pointerType (this.EmitCon env c)
         | Cprod [] -> intType // FIXME
         | Carrow(cl, cr) ->
-            function_type (this.EmitCon env cr)
+            functionType (this.EmitCon env cr)
                 (List.map (this.EmitCon env) cl)
         | _ -> raise (BackendFatal("unimplemented type emission " + (string c)))
 
@@ -107,86 +107,86 @@ type Emitter(mdl, context) =
         | Evar(id, n) when id >= 0 ->
             try
                 let v = env.named_refs.Item(id)
-                build_load v ((Env.mangleName id) + "_ld") builder
+                buildLoad v ((Env.mangleName id) + "_ld") builder
             with e ->
                 valueMap n () (printf "%s")
                 raise e
         | Evar(id, _) when id < 0 ->
             raise (BackendError "unknown variable name")
-        | Eint i -> const_int i
-        | Estring s -> build_global_stringptr s "string_tmp" builder
+        | Eint i -> constInt i
+        | Estring s -> buildGlobalStringptr s "string_tmp" builder
         | Ebool b ->
-            if b then const_bool true
-            else const_bool false
+            if b then constBool true
+            else constBool false
         | Eop(o, el) ->
             (match o with
              | Add ->
                  let lhs = this.EmitTexp env (List.item 0 el)
                  let rhs = this.EmitTexp env (List.item 1 el)
-                 build_add lhs rhs builder
+                 buildAdd lhs rhs builder
              | Multiply ->
                  let lhs = this.EmitTexp env (List.item 0 el)
                  let rhs = this.EmitTexp env (List.item 1 el)
-                 build_mul lhs rhs builder
+                 buildMul lhs rhs builder
              | Minus ->
                  let lhs = this.EmitTexp env (List.item 0 el)
                  let rhs = this.EmitTexp env (List.item 1 el)
-                 build_sub lhs rhs builder
+                 buildSub lhs rhs builder
              | Equal ->
                  let lhs = this.EmitTexp env (List.item 0 el)
                  let rhs = this.EmitTexp env (List.item 1 el)
-                 build_icmp Icmp_eq lhs rhs builder
+                 buildIcmp Icmp_eq lhs rhs builder
              | Cprintf ->
                  let vl = List.map (this.EmitTexp env) el
-                 (match lookup_function "printf" theModule with
+                 (match lookupFunction "printf" theModule with
                   | None -> raise (BackendFatal "printf should be declared")
                   | Some printer ->
-                      build_call printer (Array.ofList vl) "unit" builder)
+                      buildCall printer (Array.ofList vl) "unit" builder)
              | Lt ->
                  let lhs = this.EmitTexp env (List.item 0 el)
                  let rhs = this.EmitTexp env (List.item 1 el)
-                 build_icmp Icmp_slt lhs rhs builder
+                 buildIcmp Icmp_slt lhs rhs builder
              | Idx ->
                  let lhs = this.EmitTexp env (List.item 0 el)
                  let rhs = this.EmitTexp env (List.item 1 el)
-                 let p = build_gep lhs [ rhs ] "idx" builder
-                 build_load p "ld" builder)
+                 let p = buildGEP lhs [ rhs ] "idx" builder
+                 buildLoad p "ld" builder)
         | Efunc(id, vmcl, cr, body) -> this.EmitFunc env (id, vmcl, cr, body)
         | Efield(b, (i, Some f)) ->
             assert (i >= 0)
-            build_extractvalue (this.EmitTexp env b) i f builder
+            buildExtractvalue (this.EmitTexp env b) i f builder
         | Earray(el) ->
             match c with
             | Carray elem_ty ->
                 let c' = this.EmitCon env elem_ty
-                let l = const_int (List.length el)
-                let res = build_array_alloca c' l "array_cns" builder
+                let l = constInt (List.length el)
+                let res = buildArrayAlloca c' l "array_cns" builder
                 let init_elem i e' =
-                    let gep = build_gep res [ const_int i ] "gep" builder
-                    let _ = build_store (this.EmitTexp env e') gep builder
+                    let gep = buildGEP res [ constInt i ] "gep" builder
+                    let _ = buildStore (this.EmitTexp env e') gep builder
                     ()
                 List.iteri init_elem el
                 res
             | _ -> raise (BackendFatal "TODO Emitter.EmitTexp")
         | Ector(Cstruct(_, Some s), sel) ->
-            (match type_by_name s theModule with
+            (match typeByName s theModule with
              | None -> raise (BackendError "TODO Emitter.EmitTexp")
              | Some ty ->
-                 let elems = struct_element_types ty
-                 let start = const_struct context (Array.map undef elems)
+                 let elems = structElementTypes ty
+                 let start = constStruct context (Array.map undef elems)
                  let roll =
                      (fun (i, v) e ->
                      (i + 1,
-                      build_insertvalue v (this.EmitTexp env e) i "field"
+                      buildInsertvalue v (this.EmitTexp env e) i "field"
                           builder))
                  let (_, res) = List.fold roll (0, start) (List.map snd sel)
                  res)
         | Eapp(f, args) ->
-            build_call (this.EmitTexp env f)
+            buildCall (this.EmitTexp env f)
                 (Array.ofList (List.map (this.EmitTexp env) args)) "res"
                 builder
         | Etuple [] ->
-            const_int 0 // FIXME
+            constInt 0 // FIXME
         | _ ->
             raise (BackendFatal "TODO Emitter.EmitTexp")
 
@@ -194,15 +194,15 @@ type Emitter(mdl, context) =
         match s with
         | Sret te ->
             let ret = this.EmitTexp env te
-            ignore (build_ret ret builder)
+            ignore (buildRet ret builder)
         | Sdecl((id, n), ((c, _) as te)) ->
             let c' = this.EmitCon env c
             let value = this.EmitTexp env te
             // FIXME build_alloca -> alloc_box
             let addr =
-                build_alloca (this.EmitCon env c) (Env.mangleName id)
+                buildAlloca (this.EmitCon env c) (Env.mangleName id)
                     builder
-            ignore (build_store value addr builder)
+            ignore (buildStore value addr builder)
             env.named_refs.Add(id, addr)
         | Sblk sl ->
             List.iter (this.EmitStmt env) sl
@@ -210,74 +210,74 @@ type Emitter(mdl, context) =
             let _ = this.EmitTexp env te in ()
         | Sasgn(lval, te) ->
             ignore
-                (build_store (this.EmitTexp env te) (this.EmitRef env lval)
+                (buildStore (this.EmitTexp env te) (this.EmitRef env lval)
                      builder)
         | Sif(te, s0, s1) ->
             let pred = this.EmitTexp env te
             (* Grab the first block so that we might later add the conditional
          * branch to it at the end of the function. *)
-            let startBB = insertion_block builder
-            let theFunction = block_parent startBB
-            let thenBB = append_block context "then" theFunction
+            let startBB = insertionBlock builder
+            let theFunction = blockParent startBB
+            let thenBB = appendBlock context "then" theFunction
             (* Emit 'then' value. *)
-            position_at_end thenBB builder
+            positionAtEnd thenBB builder
             this.EmitStmt env s0
             (* Codegen of 'then' can change the current block, update thenBB for
          * the phi. We create a new name because one is used for the phi node,
          * and the other is used for the conditional branch. *)
-            let newThenBB = insertion_block builder
+            let newThenBB = insertionBlock builder
             (* Emit 'else' value. *)
-            let elseBB = append_block context "else" theFunction
-            position_at_end elseBB builder
+            let elseBB = appendBlock context "else" theFunction
+            positionAtEnd elseBB builder
             this.EmitStmt env s1
             (* Codegen of 'else' can change the current block, update elseBB for
          * the phi. *)
-            let newElseBB = insertion_block builder
+            let newElseBB = insertionBlock builder
             (* Emit merge block. *)
-            let mergeBB = append_block context "cont" theFunction
+            let mergeBB = appendBlock context "cont" theFunction
             (* Return to the start block to add the conditional branch. *)
-            position_at_end startBB builder
-            ignore (build_cond_br pred thenBB elseBB builder)
+            positionAtEnd startBB builder
+            ignore (buildCondBr pred thenBB elseBB builder)
             (* Set a unconditional branch at the end of the 'then' block and the
          * 'else' block to the 'merge' block. *)
-            position_at_end newThenBB builder
-            ignore (build_br mergeBB builder)
-            position_at_end newElseBB builder
-            ignore (build_br mergeBB builder)
+            positionAtEnd newThenBB builder
+            ignore (buildBr mergeBB builder)
+            positionAtEnd newElseBB builder
+            ignore (buildBr mergeBB builder)
             (* Finally, set the builder to the end of the merge block. *)
-            position_at_end mergeBB builder
+            positionAtEnd mergeBB builder
         | Swhile(e, s) ->
-            let startBB = insertion_block builder
-            let theFunction = block_parent startBB
-            let condBB = append_block context "cond" theFunction
-            position_at_end condBB builder
+            let startBB = insertionBlock builder
+            let theFunction = blockParent startBB
+            let condBB = appendBlock context "cond" theFunction
+            positionAtEnd condBB builder
             let pred = this.EmitTexp env e
-            let new_condBB = insertion_block builder
-            let loopBB = append_block context "loop" theFunction
-            position_at_end loopBB builder
+            let new_condBB = insertionBlock builder
+            let loopBB = appendBlock context "loop" theFunction
+            positionAtEnd loopBB builder
             this.EmitStmt env s
-            let new_loopBB = insertion_block builder
+            let new_loopBB = insertionBlock builder
             (* Emit merge block. *)
-            let mergeBB = append_block context "cont" theFunction
-            position_at_end startBB builder
-            ignore (build_br condBB builder)
-            position_at_end new_condBB builder
-            ignore (build_cond_br pred loopBB mergeBB builder)
-            position_at_end new_loopBB builder
-            ignore (build_br new_condBB builder)
-            position_at_end mergeBB builder
+            let mergeBB = appendBlock context "cont" theFunction
+            positionAtEnd startBB builder
+            ignore (buildBr condBB builder)
+            positionAtEnd new_condBB builder
+            ignore (buildCondBr pred loopBB mergeBB builder)
+            positionAtEnd new_loopBB builder
+            ignore (buildBr new_condBB builder)
+            positionAtEnd mergeBB builder
 
     member private this.DeclFunc env s =
         match s with
         | Sdecl((i, n), (c, Efunc _)) ->
             let t = this.EmitCon env c
-            let f = declare_global (getGlobalName i) t theModule
+            let f = declareGlobal (getGlobalName i) t theModule
             env.named_refs.Add(i, f)
         | _ -> ()
 
     member this.ScanHeader(env : Env.env) = function
         | ((i, Some s), Dstruct(_, stl)) ->
-            named_struct_type context s theModule |> ignore
+            namedStructType context s theModule |> ignore
             env.struct_def.Add(i, stl)
         | (_, Dstruct _) -> raise (BackendFatal "TODO Emitter.ScanHeader")
         | (_, Diface _) -> raise (BackendFatal "TODO Emitter.ScanHeader")
@@ -285,9 +285,9 @@ type Emitter(mdl, context) =
 
     member this.EmitHeader(env : Env.env) = function
         | ((_, Some s), Dstruct(_, stl)) ->
-            let ty = named_struct_type context s theModule
+            let ty = namedStructType context s theModule
             let tl = List.map snd stl
-            struct_set_body ty (List.map (this.EmitCon env) tl) false |> ignore
+            structSetBody ty (List.map (this.EmitCon env) tl) false |> ignore
         | (_, Dstruct _) -> raise (BackendFatal "TODO Emitter.ScanHeader")
         | (_, Diface _) -> raise (BackendFatal "TODO Emitter.ScanHeader")
         | (_, Dalias _) -> raise (BackendFatal "TODO Emitter.ScanHeader")
@@ -298,8 +298,8 @@ type Emitter(mdl, context) =
             let parent = this.SwitchBlock mainBlock
             let value = this.EmitTexp env te
             let t = this.EmitCon env c
-            let addr = declare_global (getGlobalName id) t theModule
-            build_store value addr builder |> ignore
+            let addr = declareGlobal (getGlobalName id) t theModule
+            buildStore value addr builder |> ignore
             this.RestoreBlock parent
             // TODO migrate to TryAdd for dotnet core 3.0
             if not (env.named_refs.ContainsKey(id)) then
@@ -309,7 +309,7 @@ type Emitter(mdl, context) =
 
     member private this.EmitMainPrologue(env : Env.env) =
         let parent = this.SwitchBlock mainBlock
-        build_ret (const_int 0) builder |> ignore
+        buildRet (constInt 0) builder |> ignore
         this.RestoreBlock parent
 
     member this.EmitModule env (tt, prog) =
@@ -324,6 +324,6 @@ type Emitter(mdl, context) =
     member this.GetModule() = theModule
 
 let newEmitter() =
-    let context = create_context()
-    let mdl = create_module context "punkage"
+    let context = createContext()
+    let mdl = createModule context "punkage"
     new Emitter(mdl, context)

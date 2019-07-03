@@ -1,3 +1,3 @@
 module Config
 
-let table_size = 42
+let tableSize = 42
