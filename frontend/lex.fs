@@ -1,4 +1,4 @@
-# 1 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 1 "/home/zhxchen17/punklang/parser/lex.fsl"
  
 module Lexer
 #light "off"
@@ -212,177 +212,177 @@ let rec _fslex_dummy () = _fslex_dummy()
 and read  lexbuf =
   match _fslex_tables.Interpret(13,lexbuf) with
   | 0 -> ( 
-# 45 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 45 "/home/zhxchen17/punklang/parser/lex.fsl"
                            read lexbuf 
 # 217 "lex.fs"
           )
   | 1 -> ( 
-# 46 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 46 "/home/zhxchen17/punklang/parser/lex.fsl"
                            PLUS 
 # 222 "lex.fs"
           )
   | 2 -> ( 
-# 47 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 47 "/home/zhxchen17/punklang/parser/lex.fsl"
                            ASTERISK 
 # 227 "lex.fs"
           )
   | 3 -> ( 
-# 48 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 48 "/home/zhxchen17/punklang/parser/lex.fsl"
                            MINUS 
 # 232 "lex.fs"
           )
   | 4 -> ( 
-# 49 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 49 "/home/zhxchen17/punklang/parser/lex.fsl"
                            EQUAL 
 # 237 "lex.fs"
           )
   | 5 -> ( 
-# 50 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 50 "/home/zhxchen17/punklang/parser/lex.fsl"
                            LPAREN 
 # 242 "lex.fs"
           )
   | 6 -> ( 
-# 51 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 51 "/home/zhxchen17/punklang/parser/lex.fsl"
                            RPAREN 
 # 247 "lex.fs"
           )
   | 7 -> ( 
-# 52 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 52 "/home/zhxchen17/punklang/parser/lex.fsl"
                             FUNC 
 # 252 "lex.fs"
           )
   | 8 -> ( 
-# 53 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 53 "/home/zhxchen17/punklang/parser/lex.fsl"
                            VAR 
 # 257 "lex.fs"
           )
   | 9 -> ( 
-# 54 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 54 "/home/zhxchen17/punklang/parser/lex.fsl"
                          COLON 
 # 262 "lex.fs"
           )
   | 10 -> ( 
-# 55 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 55 "/home/zhxchen17/punklang/parser/lex.fsl"
                          COMMA 
 # 267 "lex.fs"
           )
   | 11 -> ( 
-# 56 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 56 "/home/zhxchen17/punklang/parser/lex.fsl"
                          DOT 
 # 272 "lex.fs"
           )
   | 12 -> ( 
-# 57 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 57 "/home/zhxchen17/punklang/parser/lex.fsl"
                            CINT 
 # 277 "lex.fs"
           )
   | 13 -> ( 
-# 58 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 58 "/home/zhxchen17/punklang/parser/lex.fsl"
                               CSTRING 
 # 282 "lex.fs"
           )
   | 14 -> ( 
-# 59 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 59 "/home/zhxchen17/punklang/parser/lex.fsl"
                             CBOOL 
 # 287 "lex.fs"
           )
   | 15 -> ( 
-# 60 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 60 "/home/zhxchen17/punklang/parser/lex.fsl"
                             TRUE 
 # 292 "lex.fs"
           )
   | 16 -> ( 
-# 61 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 61 "/home/zhxchen17/punklang/parser/lex.fsl"
                              FALSE 
 # 297 "lex.fs"
           )
   | 17 -> ( 
-# 62 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 62 "/home/zhxchen17/punklang/parser/lex.fsl"
                           IF 
 # 302 "lex.fs"
           )
   | 18 -> ( 
-# 63 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 63 "/home/zhxchen17/punklang/parser/lex.fsl"
                              WHILE 
 # 307 "lex.fs"
           )
   | 19 -> ( 
-# 64 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 64 "/home/zhxchen17/punklang/parser/lex.fsl"
                             ELSE 
 # 312 "lex.fs"
           )
   | 20 -> ( 
-# 65 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 65 "/home/zhxchen17/punklang/parser/lex.fsl"
                          SEMICOLON 
 # 317 "lex.fs"
           )
   | 21 -> ( 
-# 66 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 66 "/home/zhxchen17/punklang/parser/lex.fsl"
                               RETURN 
 # 322 "lex.fs"
           )
   | 22 -> ( 
-# 67 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 67 "/home/zhxchen17/punklang/parser/lex.fsl"
                          LESS 
 # 327 "lex.fs"
           )
   | 23 -> ( 
-# 68 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 68 "/home/zhxchen17/punklang/parser/lex.fsl"
                          LBRACE 
 # 332 "lex.fs"
           )
   | 24 -> ( 
-# 69 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 69 "/home/zhxchen17/punklang/parser/lex.fsl"
                          RBRACE 
 # 337 "lex.fs"
           )
   | 25 -> ( 
-# 70 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 70 "/home/zhxchen17/punklang/parser/lex.fsl"
                            LET 
 # 342 "lex.fs"
           )
   | 26 -> ( 
-# 71 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 71 "/home/zhxchen17/punklang/parser/lex.fsl"
                          ASSIGN 
 # 347 "lex.fs"
           )
   | 27 -> ( 
-# 72 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 72 "/home/zhxchen17/punklang/parser/lex.fsl"
                          LBOX 
 # 352 "lex.fs"
           )
   | 28 -> ( 
-# 73 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 73 "/home/zhxchen17/punklang/parser/lex.fsl"
                          RBOX 
 # 357 "lex.fs"
           )
   | 29 -> ( 
-# 74 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 74 "/home/zhxchen17/punklang/parser/lex.fsl"
                               STRUCT 
 # 362 "lex.fs"
           )
   | 30 -> ( 
-# 75 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 75 "/home/zhxchen17/punklang/parser/lex.fsl"
                               PRINTF 
 # 367 "lex.fs"
           )
   | 31 -> ( 
-# 76 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 76 "/home/zhxchen17/punklang/parser/lex.fsl"
                          read_string (Buffer.create bufSize) lexbuf 
 # 372 "lex.fs"
           )
   | 32 -> ( 
-# 77 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 77 "/home/zhxchen17/punklang/parser/lex.fsl"
                            ID (LexBuffer<char>.LexemeString lexbuf) 
 # 377 "lex.fs"
           )
   | 33 -> ( 
-# 78 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 78 "/home/zhxchen17/punklang/parser/lex.fsl"
                            INT (int_of_string (LexBuffer<char>.LexemeString lexbuf)) 
 # 382 "lex.fs"
           )
   | 34 -> ( 
-# 79 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 79 "/home/zhxchen17/punklang/parser/lex.fsl"
                            EOF 
 # 387 "lex.fs"
           )
@@ -391,47 +391,47 @@ and read  lexbuf =
 and read_string buf lexbuf =
   match _fslex_tables.Interpret(0,lexbuf) with
   | 0 -> ( 
-# 83 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 83 "/home/zhxchen17/punklang/parser/lex.fsl"
                                STRING (Buffer.contents buf) 
 # 396 "lex.fs"
           )
   | 1 -> ( 
-# 84 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 84 "/home/zhxchen17/punklang/parser/lex.fsl"
                                Buffer.add_char buf '/'; read_string buf lexbuf 
 # 401 "lex.fs"
           )
   | 2 -> ( 
-# 85 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 85 "/home/zhxchen17/punklang/parser/lex.fsl"
                                Buffer.add_char buf '\\'; read_string buf lexbuf 
 # 406 "lex.fs"
           )
   | 3 -> ( 
-# 86 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 86 "/home/zhxchen17/punklang/parser/lex.fsl"
                                Buffer.add_char buf '\b'; read_string buf lexbuf 
 # 411 "lex.fs"
           )
   | 4 -> ( 
-# 87 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 87 "/home/zhxchen17/punklang/parser/lex.fsl"
                                Buffer.add_char buf '\012'; read_string buf lexbuf 
 # 416 "lex.fs"
           )
   | 5 -> ( 
-# 88 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 88 "/home/zhxchen17/punklang/parser/lex.fsl"
                                Buffer.add_char buf '\n'; read_string buf lexbuf 
 # 421 "lex.fs"
           )
   | 6 -> ( 
-# 89 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 89 "/home/zhxchen17/punklang/parser/lex.fsl"
                                Buffer.add_char buf '\r'; read_string buf lexbuf 
 # 426 "lex.fs"
           )
   | 7 -> ( 
-# 90 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 90 "/home/zhxchen17/punklang/parser/lex.fsl"
                                Buffer.add_char buf '\t'; read_string buf lexbuf 
 # 431 "lex.fs"
           )
   | 8 -> ( 
-# 91 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 91 "/home/zhxchen17/punklang/parser/lex.fsl"
                                   
                      Buffer.add_string buf (LexBuffer<char>.LexemeString lexbuf);
                      read_string buf lexbuf
@@ -439,13 +439,13 @@ and read_string buf lexbuf =
 # 439 "lex.fs"
           )
   | 9 -> ( 
-# 95 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 95 "/home/zhxchen17/punklang/parser/lex.fsl"
                        raise (SyntaxError
                                 ("Illegal string character: " ^ LexBuffer<char>.LexemeString lexbuf)) 
 # 445 "lex.fs"
           )
   | 10 -> ( 
-# 97 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
+# 97 "/home/zhxchen17/punklang/parser/lex.fsl"
                          raise (SyntaxError ("String is not terminated")) 
 # 450 "lex.fs"
           )
