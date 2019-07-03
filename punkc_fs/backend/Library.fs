@@ -1,20 +1,20 @@
 namespace backend
 
-open ir.Ast
+open ir.Ir
 open Errors
 
 module Backend =
     type Backend() =
-        let mutable env = Env.empty_env()
+        let mutable env = Env.emptyEnv()
 
         member this.emit mdl =
-            let emitter = Emit.new_emitter()
-            emitter.emit_module env mdl |> ignore
+            let emitter = Emit.newEmitter()
+            emitter.EmitModule env mdl |> ignore
             // printfn "%A" (emitter.get_module())
-            emitter.get_module()
+            emitter.GetModule()
 
-        member this.llvm_gen mdl = Llvm_gen.gen_module mdl
+        member this.llvmGen mdl = Llvm_gen.genModule mdl
         member this.compile code =
             code
             |> this.emit
-            |> this.llvm_gen
+            |> this.llvmGen

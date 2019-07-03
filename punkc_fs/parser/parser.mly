@@ -125,7 +125,7 @@ stmt:
   | RETURN; e = expr; SEMICOLON { Tstmt_ret e }
   | LET; x = ID; COLON; ty = con; ASSIGN; e = expr; SEMICOLON { Tstmt_decl (Var.newvar (Some x), Timm, Some ty, e) }
   | VAR; x = ID; COLON; ty = con; ASSIGN; e = expr; SEMICOLON { Tstmt_decl (Var.newvar (Some x), Tmut, Some ty, e) }
-  | STRUCT; sname = ID; LBRACE; xcl = separated_list(COMMA, separated_pair(ID, COLON, con)); RBRACE { let v = Var.newvar (Some sname) in Tstmt_decl (v, Timm, None, Texpr_con (Tcon_prod (List.map snd xcl, Some (List.map fst xcl)))) }
+  | STRUCT; sname = ID; LBRACE; xcl = separated_list(COMMA, separated_pair(ID, COLON, con)); RBRACE { let v = Var.newvar (Some sname) in Tstmt_struct (v, xcl) }
   | e = expr; SEMICOLON { Tstmt_expr e }
   | lval = expr; ASSIGN; e = expr; SEMICOLON { Tstmt_asgn(lval, e) }
   | IF; LPAREN; e = expr; RPAREN; LBRACE; sl0 = list(stmt); RBRACE { Tstmt_if (e, Tstmt_blk sl0, Tstmt_blk []) }

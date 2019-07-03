@@ -974,7 +974,7 @@ let _fsyacc_reductions ()  =    [|
 # 239 "/home/zhxchen17/punklang/punkc_fs/parser/parse.fsy"
                           let (_1, sname, _3, xs, _5) = ((), _2, (), _4, ()) in
                      let xcl =     ( xs ) in
-                                                                                                                         ( let v = Var.newvar (Some sname) in Tstmt_decl (v, Timm, None, Texpr_con (Tcon_prod (List.map snd xcl, Some (List.map fst xcl)))) )
+                                                                                                                         ( let v = Var.newvar (Some sname) in Tstmt_struct (v, xcl) )
                    )
 # 239 "/home/zhxchen17/punklang/punkc_fs/parser/parse.fsy"
                  : 'stmt));

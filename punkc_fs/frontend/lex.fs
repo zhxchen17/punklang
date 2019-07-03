@@ -368,7 +368,7 @@ and read  lexbuf =
           )
   | 31 -> ( 
 # 76 "/home/zhxchen17/punklang/punkc_fs/parser/lex.fsl"
-                         read_string (Buffer.create buf_size) lexbuf 
+                         read_string (Buffer.create bufSize) lexbuf 
 # 372 "lex.fs"
           )
   | 32 -> ( 

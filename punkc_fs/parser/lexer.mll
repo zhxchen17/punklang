@@ -66,7 +66,7 @@ rule read =
   | "]" { RBOX }
   | "struct" { STRUCT }
   | "printf" { PRINTF }
-  | '"' { read_string (Buffer.create buf_size) lexbuf }
+  | '"' { read_string (Buffer.create bufSize) lexbuf }
   | id    { ID (Lexing.lexeme lexbuf) }
   | int   { INT (int_of_string (Lexing.lexeme lexbuf)) }
   | eof   { EOF }

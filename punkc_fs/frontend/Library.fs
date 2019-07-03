@@ -4,7 +4,6 @@ module Frontend =
     open FSharp.Text.Lexing
     open Errors
     open Tir
-    open ir.Ast
 
     (* Parse a string into an ast *)
     let parse s =
@@ -18,35 +17,37 @@ module Frontend =
         ast
 
     type Frontend() =
-        let mutable env = Env.empty_env()
+        let mutable env = Env.emptyEnv()
 
-        member private this.extract_id stmt =
-            match stmt with
-            | Tstmt_decl((id, Some name), _, _, _) when id >= 0 ->
-                env <- Env.add_id env id name
-            | Tstmt_decl((id, _), _, _, _) when id < 0 ->
-                raise (Fatal "id is negative")
-            | _ -> ()
+        // member private this.extractId stmt =
+        //     match stmt with
+        //     | Tstmt_decl((id, Some name), _, _, _) when id >= 0 ->
+        //         env <- Env.addId env id name
+        //     | Tstmt_struct((id, Some name), _) when id >= 0 ->
+        //         env <- Env.addId env id name
+        //     | Tstmt_decl((id, _), _, _, _) when id < 0 ->
+        //         raise (Fatal "TODO Frontend.extractId")
+        //     | Tstmt_struct((id, _), _) when id < 0 ->
+        //         raise (Fatal "TODO Frontend.extractId")
+        //     | _ -> ()
 
         member this.parse s =
             let stmt_list = parse s
-            List.iter this.extract_id stmt_list
+            // List.iter this.extractId stmt_list
             stmt_list
 
         member this.resolve prog =
-            match Resolve.resolve_stmt env (Tstmt_blk prog) with
-            | Tstmt_blk sl -> sl
-            | _ -> raise (Fatal "failed to unpack resolved program")
+            Resolve.resolveModule env prog
 
         member this.elaborate prog =
-            Elaborate.elab_module env prog
+            Elaborate.elabModule env prog
 
-        member this.type_check prog =
-            Check.check_module env prog
+        member this.typeCheck prog =
+            Check.checkModule env prog
 
         member this.compile code =
             code
             |> this.parse
             |> this.resolve
             |> this.elaborate
-            |> this.type_check
+            |> this.typeCheck

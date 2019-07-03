@@ -1,4 +1,4 @@
 module Config
 
-let buf_size = 17
-let table_size = 42
+let bufSize = 17
+let tableSize = 42

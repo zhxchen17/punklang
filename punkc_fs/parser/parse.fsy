@@ -238,7 +238,7 @@ let args =     ( xs ) in
 | STRUCT ID LBRACE loption_separated_nonempty_list_COMMA_separated_pair_ID_COLON_con___ RBRACE
     {let (_1, sname, _3, xs, _5) = ((), $2, (), $4, ()) in
 let xcl =     ( xs ) in
-                                                                                                    ( let v = Var.newvar (Some sname) in Tstmt_decl (v, Timm, None, Texpr_con (Tcon_prod (List.map snd xcl, Some (List.map fst xcl)))) )}
+                                                                                                    ( let v = Var.newvar (Some sname) in Tstmt_struct (v, xcl) )}
 | expr SEMICOLON
     {let (e, _2) = ($1, ()) in
                         ( Tstmt_expr e )}

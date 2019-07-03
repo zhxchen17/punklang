@@ -40,8 +40,6 @@ and expr =
     | Texpr_app of expr * expr list
     | Texpr_tuple of expr list
     | Texpr_ctor of con * (string * expr) list
-    | Texpr_con of con
-    (* for decls only *)
     // | Texpr_plam of kind * iface * expr
     | Texpr_array of expr list
     | Texpr_field of expr * Var.id
@@ -58,4 +56,5 @@ and stmt =
     | Tstmt_if of expr * stmt * stmt
     | Tstmt_while of expr * stmt
     | Tstmt_decl of Var.id * mut * con option * expr
+    | Tstmt_struct of Var.id * (string * con) list
     | Tstmt_asgn of expr * expr

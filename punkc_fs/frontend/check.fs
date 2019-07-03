@@ -3,115 +3,114 @@ module Check
 open ir.Ir
 open Errors
 
-let rec infer_type (env : Env.env) = function
+let rec inferType (env : Env.env) = function
     | Cint -> Ktype
     | Cstring -> Ktype
     | Cbool -> Ktype
     | Cvar i ->
         if i >= env.ctx.ksize then
-            raise (Fatal "TODO infer_type")
+            raise (Fatal "TODO inferType")
         else
             Ktype
     | Cprod cl ->
-        List.iter (check_type env Ktype) cl
+        List.iter (checkType env Ktype) cl
         Ktype
     | Carrow(cl, c) ->
-        List.iter (check_type env Ktype) cl
-        check_type env Ktype c
+        List.iter (checkType env Ktype) cl
+        checkType env Ktype c
         Ktype
     | Clam(il, c) ->
-        let ctx' = List.fold (fun c _ -> Env.extend_kind c Ktype) env.ctx il
-        let k = infer_type { env with ctx = ctx' } c
+        let ctx' = List.fold (fun c _ -> Env.extendKind c Ktype) env.ctx il
+        let k = inferType { env with ctx = ctx' } c
         let kl = List.init (List.length il) (fun _ -> Ktype)
         Kpi(kl, k)
     | Capp(c, cl) ->
-        let k = infer_type env c
+        let k = inferType env c
         match k with
         | Kpi(l, r) ->
-            List.iter2 (check_type env) l cl
+            List.iter2 (checkType env) l cl
             r
-        | _ -> raise (TypeError "TODO infer_type")
+        | _ -> raise (TypeError "TODO inferType")
     | Cforall(il, c) ->
-        let ctx' = List.fold (fun c _ -> Env.extend_kind c Ktype) env.ctx il
-        infer_type { env with ctx = ctx' } c
+        let ctx' = List.fold (fun c _ -> Env.extendKind c Ktype) env.ctx il
+        inferType { env with ctx = ctx' } c
     | Carray c ->
-        infer_type env c
+        inferType env c
     | Cref c ->
-        infer_type env c
+        inferType env c
     | Cstruct(i, _) ->
         match env.ctx.struct_map.TryGetValue(i) with
-        | false, _ -> raise (Fatal "TODO infer_type")
+        | false, _ -> raise (Fatal "TODO inferType")
         | true, k -> k
     | Cunit ->
         Ktype
     | Csym _ ->
-        raise (Fatal "TODO infer_type")
+        raise (Fatal "TODO inferType")
     | Cexists(il, c) ->
-        let ctx' = List.fold (fun c _ -> Env.extend_kind c Ktype) env.ctx il
-        infer_type { env with ctx = ctx' } c
+        let ctx' = List.fold (fun c _ -> Env.extendKind c Ktype) env.ctx il
+        inferType { env with ctx = ctx' } c
 
-and check_type (env : Env.env) k c =
-    let k' = infer_type env c
-    Typing.subkind env.ctx k' k
+and checkType (env : Env.env) k c =
+    let k' = inferType env c
+    Typing.subKind env.ctx k' k
 
-let scan_header (env : Env.env) ((i, _), d) =
+let scanHeader (env : Env.env) ((i, _), d) =
     match d with
-    | Dstruct([], _) ->
-        env.ctx.struct_map.Add(i, Ktype)
+    | Dstruct([], _) -> env.ctx.struct_map.Add(i, Ktype)
     | Dstruct(il, _) ->
         let len = List.length il
         env.ctx.struct_map.Add(i, Kpi(List.init len (fun _ -> Ktype), Ktype))
-    | Diface _ -> raise (Fatal "TODO scan_header")
-    | Dalias _ -> raise (Fatal "TODO scan_header")
+    | Diface _ -> raise (Fatal "TODO scanHeader")
+    | Dalias _ -> raise (Fatal "TODO scanHeader")
 
-let check_header (env : Env.env) ((i, _), d) =
+let checkHeader (env : Env.env) ((i, _), d) =
     match d with
     | Dstruct(_, stl) ->
-        List.iter (fun (_, t) -> check_type env Ktype t) stl
+        List.iter (fun (_, t) -> checkType env Ktype t) stl
         env.struct_def.Add(i, stl)
-    | Diface _ -> raise (Fatal "TODO check_header")
-    | Dalias _ -> raise (Fatal "TODO check_header")
+    | Diface _ -> raise (Fatal "TODO checkHeader")
+    | Dalias _ -> raise (Fatal "TODO checkHeader")
 
-let rec check_stmt (env : Env.env) = function
+let rec checkStmt (env : Env.env) = function
     | Sexpr e ->
-        Sexpr(infer_expr env e)
+        Sexpr(inferExpr env e)
     | Sblk sl ->
-        Sblk(check_stmts env sl)
+        Sblk(checkStmts env sl)
     | Sret e ->
-        Sret(infer_expr env e) // FIXME type checking
+        Sret(inferExpr env e) // FIXME type checking
     | Sif(e, s0, s1) ->
-        let (t, e') = infer_expr env e
+        let (t, e') = inferExpr env e
         Typing.equiv env.ctx t Cbool Ktype
-        Sif(infer_expr env e, check_stmt env s0, check_stmt env s1)
+        Sif(inferExpr env e, checkStmt env s0, checkStmt env s1)
     | Swhile(e, s) ->
-        let (t, e') = infer_expr env e
+        let (t, e') = inferExpr env e
         Typing.equiv env.ctx t Cbool Ktype
-        Swhile(infer_expr env e, check_stmt env s)
+        Swhile(inferExpr env e, checkStmt env s)
     | Sdecl((i, _) as v, e) ->
-        let (t, e') as te' = infer_expr env e
-        Env.extend_type env.ctx i t
+        let (t, e') as te' = inferExpr env e
+        Env.extendType env.ctx i t
         Sdecl(v, te')
     | Sasgn(e0, e1) ->
-        let (t0, e0') = infer_expr env e0
-        let (t1, e1') = infer_expr env e1
+        let (t0, e0') = inferExpr env e0
+        let (t1, e1') = inferExpr env e1
         Typing.equiv env.ctx t0 t1 Ktype // FIXME type checking
         Sasgn((t0, e0'), (t1, e1'))
 
-and check_stmts (env : Env.env) = function
+and checkStmts (env : Env.env) = function
     | [] -> []
     | hd :: tl ->
-        let s = check_stmt env hd
-        s :: (check_stmts env tl)
+        let s = checkStmt env hd
+        s :: (checkStmts env tl)
 
-and infer_func (env : Env.env) (v, vcl, cr, s) =
-    List.iter (fun (v, dom) -> check_type env Ktype dom) vcl
-    check_type env Ktype cr
-    List.iter (fun ((id, _), c) -> Env.extend_type env.ctx id c) vcl
-    let s' = check_stmt env s
+and inferFunc (env : Env.env) (v, vcl, cr, s) =
+    List.iter (fun (v, dom) -> checkType env Ktype dom) vcl
+    checkType env Ktype cr
+    List.iter (fun ((id, _), c) -> Env.extendType env.ctx id c) vcl
+    let s' = checkStmt env s
     (Carrow(List.map snd vcl, cr), Efunc(v, vcl, cr, s'))
 
-and infer_op (env : Env.env) (o, tel) =
-    let tel' = List.map (infer_expr env) tel
+and inferOp (env : Env.env) (o, tel) =
+    let tel' = List.map (inferExpr env) tel
     match o with
     | Add -> (Cint, Eop(Add, tel')) // FIXME type checking
     | Cprintf -> (Cunit, Eop(Cprintf, tel')) // FIXME type checking
@@ -126,98 +125,98 @@ and infer_op (env : Env.env) (o, tel) =
             (match Typing.whnf env.ctx c' with
              | Carray c'' -> (c'', Eop(Idx, tel'))
              | _ ->
-                 raise (Fatal "TODO infer_op"))
+                 raise (Fatal "TODO inferOp"))
         | _ ->
-            raise (Fatal "TODO infer_op")
+            raise (Fatal "TODO inferOp")
 
-and infer_expr (env : Env.env) (_, e) =
+and inferExpr (env : Env.env) (_, e) =
     match e with
-    | Evar(i, _) -> (Env.lookup_type env.ctx i, e)
+    | Evar(i, _) -> (Env.lookupType env.ctx i, e)
     | Eint i -> (Cint, e)
     | Estring s -> (Cstring, e)
     | Ebool b -> (Cbool, e)
-    | Eop(o, tel) -> infer_op env (o, tel)
-    | Efunc(v, vcl, cr, s) -> infer_func env (v, vcl, cr, s)
+    | Eop(o, tel) -> inferOp env (o, tel)
+    | Efunc(v, vcl, cr, s) -> inferFunc env (v, vcl, cr, s)
     | Eapp(f, args) ->
-        let (t, f') as tf' = infer_expr env f
+        let (t, f') as tf' = inferExpr env f
         match Typing.whnf env.ctx t with
         | Carrow(dom, cod) ->
-            let args' = List.map2 (check_expr env) args dom
+            let args' = List.map2 (checkExpr env) args dom
             (cod, Eapp(tf', args'))
-        | _ -> raise (TypeError "TODO infer_expr")
+        | _ -> raise (TypeError "TODO inferExpr")
     | Etuple tel ->
-        let tel' = List.map (infer_expr env) tel
+        let tel' = List.map (inferExpr env) tel
         (Cprod(List.map fst tel'), Etuple tel')
     | Ector((Cstruct(id, _) as t), sel) ->
         match env.struct_def.TryGetValue(id) with
-        | false, _ -> raise (TypeError "TODO infer_expr")
+        | false, _ -> raise (TypeError "TODO inferExpr")
         | true, stl ->
             let init_field (name, t) =
                 match List.tryFind (fun (s, _) -> s = name) sel with
-                | Some(s, e) -> (s, check_expr env e t)
+                | Some(s, e) -> (s, checkExpr env e t)
                 | None -> (name, (t, Edefault t))
             (t, Ector(t, List.map init_field stl))
-    | Ector _ -> raise (TypeError "TODO infer_expr")
+    | Ector _ -> raise (TypeError "TODO inferExpr")
     | Earray tel ->
         match tel with
         | hd :: tl ->
-            let (t, e') as te' = infer_expr env hd
-            let tl' = List.map (infer_expr env) tl
+            let (t, e') as te' = inferExpr env hd
+            let tl' = List.map (inferExpr env) tl
             List.iter (fun (t', _) -> Typing.equiv env.ctx t t' Ktype) tl'
             (Carray t, Earray(te' :: tl'))
-        | _ -> raise (TypeError "TODO infer_expr")
+        | _ -> raise (TypeError "TODO inferExpr")
     | Efield(b, (_, Some f)) ->
-        let (t, b') as tb' = infer_expr env b
-        let lookup_field id f =
+        let (t, b') as tb' = inferExpr env b
+        let lookupField id f =
             match env.struct_def.TryGetValue(id) with
-            | false, _ -> raise (TypeError "TODO infer_expr")
+            | false, _ -> raise (TypeError "TODO inferExpr")
             | true, stl ->
                 let i = List.findIndex (fun (s, _) -> s = f) stl
                 let (_, t) = List.item i stl
                 (i, t)
         match Typing.whnf env.ctx t with
         | Cstruct(id, _) ->
-            let (i, t) = lookup_field id f
+            let (i, t) = lookupField id f
             (t, Efield(tb', (i, Some f)))
-        | _ -> raise (TypeError "TODO infer_expr")
-    | Efield(_, (_, None)) -> raise (Fatal "TODO infer_expr")
+        | _ -> raise (TypeError "TODO inferExpr")
+    | Efield(_, (_, None)) -> raise (Fatal "TODO inferExpr")
     | Edefault ty -> (ty, e)
     // | Eplam(k, t, e') ->
     // let k' = check_kind env k
-    // let (c', e'') = infer_expr { env with ctx = Env.extend_kind ctx k' } e'
+    // let (c', e'') = inferExpr { env with ctx = Env.extendKind ctx k' } e'
     // (Cforall(k', c'), e'')
 
-and check_expr (env : Env.env) (t, e) c =
-    let (t', _) as te' = infer_expr env (t, e)
-    Typing.subtype env.ctx t' c
+and checkExpr (env : Env.env) (t, e) c =
+    let (t', _) as te' = inferExpr env (t, e)
+    Typing.subType env.ctx t' c
     te'
 
-let scan_prog (env : Env.env) = function
+let scanProg (env : Env.env) = function
     | Sdecl((i, _), (_, Efunc(_, vcl, cr, _))) ->
-        List.iter (fun (_, c) -> (check_type env Ktype c)) vcl
-        check_type env Ktype cr
-        Env.extend_type env.ctx i (Carrow(List.map snd vcl, cr))
+        List.iter (fun (_, c) -> (checkType env Ktype c)) vcl
+        checkType env Ktype cr
+        Env.extendType env.ctx i (Carrow(List.map snd vcl, cr))
     | _ -> ()
 
-let rec check_prog (env : Env.env) = function
+let rec checkProg (env : Env.env) = function
     | [] -> []
     | hd :: tl ->
         let s =
             match hd with
-            | Sexpr _ -> check_stmt env hd
-            | Sblk _ -> raise (Error "TODO check_prog")
-            | Sret _ -> raise (Error "TODO check_prog")
-            | Sif _ -> check_stmt env hd
-            | Swhile _ -> check_stmt env hd
+            | Sexpr _ -> checkStmt env hd
+            | Sblk _ -> raise (Error "TODO checkProg")
+            | Sret _ -> raise (Error "TODO checkProg")
+            | Sif _ -> checkStmt env hd
+            | Swhile _ -> checkStmt env hd
             | Sdecl(g, (_, Efunc(v, vcl, cr, s))) ->
-                Sdecl(g, infer_func env (v, vcl, cr, s))
-            | Sdecl _ -> check_stmt env hd
-            | Sasgn _ -> check_stmt env hd
-        s :: (check_prog env tl)
+                Sdecl(g, inferFunc env (v, vcl, cr, s))
+            | Sdecl _ -> checkStmt env hd
+            | Sasgn _ -> checkStmt env hd
+        s :: (checkProg env tl)
 
-let check_module (env : Env.env) (tt, prog) =
+let checkModule (env : Env.env) (tt, prog) =
     // TODO add interface and extension
-    List.iter (scan_header env) tt
-    List.iter (check_header env) tt
-    List.iter (scan_prog env) prog
-    (tt, check_prog env prog)
+    List.iter (scanHeader env) tt
+    List.iter (checkHeader env) tt
+    List.iter (scanProg env) prog
+    (tt, checkProg env prog)

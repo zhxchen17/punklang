@@ -73,7 +73,7 @@ rule read =
   | "]" { RBOX }
   | "struct" { STRUCT }
   | "printf" { PRINTF }
-  | '"' { read_string (Buffer.create buf_size) lexbuf }
+  | '"' { read_string (Buffer.create bufSize) lexbuf }
   | id    { ID (LexBuffer<char>.LexemeString lexbuf) }
   | int   { INT (int_of_string (LexBuffer<char>.LexemeString lexbuf)) }
   | eof   { EOF }

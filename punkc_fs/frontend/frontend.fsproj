@@ -12,7 +12,6 @@
     <Compile Include="env.fs" />
     <Compile Include="parse.fs" />
     <Compile Include="lex.fs" />
-    <Compile Include="visitors.fs" />
     <Compile Include="resolve.fs" />
     <Compile Include="elaborate.fs" />
     <Compile Include="attrs.fs" />
