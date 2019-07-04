@@ -440,13 +440,13 @@ and read_string buf lexbuf =
           )
   | 9 -> ( 
 # 95 "/home/zhxchen17/punklang/parser/lex.fsl"
-                       raise (SyntaxError
+                       raise (FrontendSyntaxException
                                 ("Illegal string character: " ^ LexBuffer<char>.LexemeString lexbuf)) 
 # 445 "lex.fs"
           )
   | 10 -> ( 
 # 97 "/home/zhxchen17/punklang/parser/lex.fsl"
-                         raise (SyntaxError ("String is not terminated")) 
+                         raise (FrontendSyntaxException ("String is not terminated")) 
 # 450 "lex.fs"
           )
   | _ -> failwith "read_string"
