@@ -100,7 +100,7 @@ type Emitter(mdl, context) =
         | Carrow(cl, cr) ->
             functionType (this.EmitCon env cr)
                 (List.map (this.EmitCon env) cl)
-        | _ -> raise (BackendFatalException("unimplemented type emission " + (string c)))
+        | _ -> raise (BackendFatalException ("unimplemented type emission " + (string c)))
 
     member this.EmitTexp (env : Env.env) (c, e) =
         match e with
