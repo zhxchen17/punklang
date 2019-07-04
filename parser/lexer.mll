@@ -85,8 +85,8 @@ and read_string buf =
       Buffer.add_string buf (Lexing.lexeme lexbuf);
       read_string buf lexbuf
     }
-  | _ { raise (SyntaxError
+  | _ { raise (FrontendSyntaxException
                  ("Illegal string character: " ^ Lexing.lexeme lexbuf)) }
-  | eof { raise (SyntaxError ("String is not terminated")) }
+  | eof { raise (FrontendSyntaxException ("String is not terminated")) }
 
 (* And that's the end of the lexer definition. *)

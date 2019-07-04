@@ -1,6 +1,6 @@
 module Bir
 
-exception BirError of string
+open Errors
 
 type BirContext =
     { bir_context_global : bool }
@@ -110,12 +110,12 @@ let namedStructType ctx name mdl =
 let structSetBody t ts packed =
     match t with
     | Bir_named_struct_type(_, fields) -> fields := Array.ofList ts
-    | _ -> raise (BirError "TODO structSetBody")
+    | _ -> raise (BackendBirException "TODO structSetBody")
 
 let structElementTypes ty =
     match ty with
     | Bir_named_struct_type(_, fields) -> !fields
-    | _ -> raise (BirError "TODO structElementTypes")
+    | _ -> raise (BackendBirException "TODO structElementTypes")
 
 let createModule ctx name =
     { bir_module_name = name
@@ -147,12 +147,12 @@ let makeParam t = (nextId(), Bir_var(t, ref "p"))
 let setParamName s v =
     match v with
     | (_, Bir_var(_, name)) -> name := s
-    | _ -> raise (BirError "the given bir value doesn't represents a parameter")
+    | _ -> raise (BackendBirException "TOOD setParamName")
 
-let get_params f =
+let getParams f =
     match f with
     | (_, Bir_function(_, p, _, _, _)) -> p
-    | _ -> raise (BirError "the given bir value is not a function")
+    | _ -> raise (BackendBirException "TODO getParams")
 
 let declareFunction name ftype mdl =
     match lookupFunction name mdl with
@@ -172,7 +172,7 @@ let declareFunction name ftype mdl =
              mdl.bir_function_decls
              := Array.append !mdl.bir_function_decls [| (name, func) |]
              func
-         | _ -> raise (BirError "function type mismatch for declaration"))
+         | _ -> raise (BackendBirException "TODO declareFunction"))
     | Some func -> func
 
 let appendBlock ctx name func =
@@ -181,7 +181,7 @@ let appendBlock ctx name func =
         let tail = (name + (string (nextId())), func, ref [||])
         blks := Array.append !blks [| tail |]
         tail
-    | _ -> raise (BirError "function expected in append_block")
+    | _ -> raise (BackendBirException "TODO appendBlock")
 
 let blockParent (_, f, _) = f
 let insertionBlock mdl = !mdl.bir_current_block

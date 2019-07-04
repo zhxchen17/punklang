@@ -45,7 +45,7 @@ type Emitter(mdl, context) =
             let b = this.EmitRef env b
             assert (idx >= 0)
             buildStructGEP b idx f builder
-        | _ -> raise (BackendFatal "rvalue is referenced")
+        | _ -> raise (BackendFatalException "rvalue is referenced")
 
     member private this.SwitchBlock blk =
         let ret = currentBlock
@@ -73,8 +73,8 @@ type Emitter(mdl, context) =
                 let addr = buildAlloca (this.EmitCon env c) n builder
                 buildStore a addr builder |> ignore
                 env.named_refs.Add(id, addr)
-            | _ -> raise (BackendError "unnamed param")
-        Array.iteri setParam (get_params theFunction)
+            | _ -> raise (BackendException "unnamed param")
+        Array.iteri setParam (getParams theFunction)
         (* Create a new basic block to start insertion into. *)
         let block = appendBlock context "entry" theFunction
         buildBr block builder |> ignore
@@ -100,7 +100,7 @@ type Emitter(mdl, context) =
         | Carrow(cl, cr) ->
             functionType (this.EmitCon env cr)
                 (List.map (this.EmitCon env) cl)
-        | _ -> raise (BackendFatal("unimplemented type emission " + (string c)))
+        | _ -> raise (BackendFatalException("unimplemented type emission " + (string c)))
 
     member this.EmitTexp (env : Env.env) (c, e) =
         match e with
@@ -112,7 +112,7 @@ type Emitter(mdl, context) =
                 valueMap n () (printf "%s")
                 raise e
         | Evar(id, _) when id < 0 ->
-            raise (BackendError "unknown variable name")
+            raise (BackendException "unknown variable name")
         | Eint i -> constInt i
         | Estring s -> buildGlobalStringptr s "string_tmp" builder
         | Ebool b ->
@@ -139,7 +139,7 @@ type Emitter(mdl, context) =
              | Cprintf ->
                  let vl = List.map (this.EmitTexp env) el
                  (match lookupFunction "printf" theModule with
-                  | None -> raise (BackendFatal "printf should be declared")
+                  | None -> raise (BackendFatalException "printf should be declared")
                   | Some printer ->
                       buildCall printer (Array.ofList vl) "unit" builder)
              | Lt ->
@@ -167,10 +167,10 @@ type Emitter(mdl, context) =
                     ()
                 List.iteri init_elem el
                 res
-            | _ -> raise (BackendFatal "TODO Emitter.EmitTexp")
+            | _ -> raise (BackendFatalException "TODO Emitter.EmitTexp")
         | Ector(Cstruct(_, Some s), sel) ->
             (match typeByName s theModule with
-             | None -> raise (BackendError "TODO Emitter.EmitTexp")
+             | None -> raise (BackendException "TODO Emitter.EmitTexp")
              | Some ty ->
                  let elems = structElementTypes ty
                  let start = constStruct context (Array.map undef elems)
@@ -188,7 +188,7 @@ type Emitter(mdl, context) =
         | Etuple [] ->
             constInt 0 // FIXME
         | _ ->
-            raise (BackendFatal "TODO Emitter.EmitTexp")
+            raise (BackendFatalException "TODO Emitter.EmitTexp")
 
     member this.EmitStmt (env : Env.env) s =
         match s with
@@ -279,18 +279,18 @@ type Emitter(mdl, context) =
         | ((i, Some s), Dstruct(_, stl)) ->
             namedStructType context s theModule |> ignore
             env.struct_def.Add(i, stl)
-        | (_, Dstruct _) -> raise (BackendFatal "TODO Emitter.ScanHeader")
-        | (_, Diface _) -> raise (BackendFatal "TODO Emitter.ScanHeader")
-        | (_, Dalias _) -> raise (BackendFatal "TODO Emitter.ScanHeader")
+        | (_, Dstruct _) -> raise (BackendFatalException "TODO Emitter.ScanHeader")
+        | (_, Diface _) -> raise (BackendFatalException "TODO Emitter.ScanHeader")
+        | (_, Dalias _) -> raise (BackendFatalException "TODO Emitter.ScanHeader")
 
     member this.EmitHeader(env : Env.env) = function
         | ((_, Some s), Dstruct(_, stl)) ->
             let ty = namedStructType context s theModule
             let tl = List.map snd stl
             structSetBody ty (List.map (this.EmitCon env) tl) false |> ignore
-        | (_, Dstruct _) -> raise (BackendFatal "TODO Emitter.ScanHeader")
-        | (_, Diface _) -> raise (BackendFatal "TODO Emitter.ScanHeader")
-        | (_, Dalias _) -> raise (BackendFatal "TODO Emitter.ScanHeader")
+        | (_, Dstruct _) -> raise (BackendFatalException "TODO Emitter.ScanHeader")
+        | (_, Diface _) -> raise (BackendFatalException "TODO Emitter.ScanHeader")
+        | (_, Dalias _) -> raise (BackendFatalException "TODO Emitter.ScanHeader")
 
     member private this.EmitGlobal (env : Env.env) s =
         match s with

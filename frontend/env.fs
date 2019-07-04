@@ -41,11 +41,11 @@ let lookupKind (ctx : context) i = List.item i ctx.kctx
 let lookupType (ctx : context) v =
     match ctx.tctx.TryGetValue(v) with
     | true, (n, c) -> Subst.liftCon (ctx.ksize - n) c
-    | false, _ -> raise (TypeError("TODO lookupType"))
+    | false, _ -> raise (FrontendTypeException("TODO lookupType"))
 
 let lookupStruct (ctx : context) i =
     match ctx.struct_map.TryGetValue(i) with
-    | false, _ -> raise (TypeError "TODO lookupStruct")
+    | false, _ -> raise (FrontendTypeException "TODO lookupStruct")
     | true, v -> v
 
 let extendKind (ctx : context) k =

@@ -1,5 +1,7 @@
 module Errors
 
-exception BackendFatal of string
+exception BackendFatalException of string
 
-exception BackendError of string
+exception BackendException of string
+
+exception BackendBirException of string

@@ -9,7 +9,7 @@ let rec inferType (env : Env.env) = function
     | Cbool -> Ktype
     | Cvar i ->
         if i >= env.ctx.ksize then
-            raise (Fatal "TODO inferType")
+            raise (FrontendFatalException "TODO inferType")
         else
             Ktype
     | Cprod cl ->
@@ -30,7 +30,7 @@ let rec inferType (env : Env.env) = function
         | Kpi(l, r) ->
             List.iter2 (checkType env) l cl
             r
-        | _ -> raise (TypeError "TODO inferType")
+        | _ -> raise (FrontendTypeException "TODO inferType")
     | Cforall(il, c) ->
         let ctx' = List.fold (fun c _ -> Env.extendKind c Ktype) env.ctx il
         inferType { env with ctx = ctx' } c
@@ -40,12 +40,12 @@ let rec inferType (env : Env.env) = function
         inferType env c
     | Cstruct(i, _) ->
         match env.ctx.struct_map.TryGetValue(i) with
-        | false, _ -> raise (Fatal "TODO inferType")
+        | false, _ -> raise (FrontendFatalException "TODO inferType")
         | true, k -> k
     | Cunit ->
         Ktype
     | Csym _ ->
-        raise (Fatal "TODO inferType")
+        raise (FrontendFatalException "TODO inferType")
     | Cexists(il, c) ->
         let ctx' = List.fold (fun c _ -> Env.extendKind c Ktype) env.ctx il
         inferType { env with ctx = ctx' } c
@@ -60,16 +60,16 @@ let scanHeader (env : Env.env) ((i, _), d) =
     | Dstruct(il, _) ->
         let len = List.length il
         env.ctx.struct_map.Add(i, Kpi(List.init len (fun _ -> Ktype), Ktype))
-    | Diface _ -> raise (Fatal "TODO scanHeader")
-    | Dalias _ -> raise (Fatal "TODO scanHeader")
+    | Diface _ -> raise (FrontendFatalException "TODO scanHeader")
+    | Dalias _ -> raise (FrontendFatalException "TODO scanHeader")
 
 let checkHeader (env : Env.env) ((i, _), d) =
     match d with
     | Dstruct(_, stl) ->
         List.iter (fun (_, t) -> checkType env Ktype t) stl
         env.struct_def.Add(i, stl)
-    | Diface _ -> raise (Fatal "TODO checkHeader")
-    | Dalias _ -> raise (Fatal "TODO checkHeader")
+    | Diface _ -> raise (FrontendFatalException "TODO checkHeader")
+    | Dalias _ -> raise (FrontendFatalException "TODO checkHeader")
 
 let rec checkStmt (env : Env.env) = function
     | Sexpr e ->
@@ -125,9 +125,9 @@ and inferOp (env : Env.env) (o, tel) =
             (match Typing.whnf env.ctx c' with
              | Carray c'' -> (c'', Eop(Idx, tel'))
              | _ ->
-                 raise (Fatal "TODO inferOp"))
+                 raise (FrontendFatalException "TODO inferOp"))
         | _ ->
-            raise (Fatal "TODO inferOp")
+            raise (FrontendFatalException "TODO inferOp")
 
 and inferExpr (env : Env.env) (_, e) =
     match e with
@@ -143,20 +143,20 @@ and inferExpr (env : Env.env) (_, e) =
         | Carrow(dom, cod) ->
             let args' = List.map2 (checkExpr env) args dom
             (cod, Eapp(tf', args'))
-        | _ -> raise (TypeError "TODO inferExpr")
+        | _ -> raise (FrontendTypeException "TODO inferExpr")
     | Etuple tel ->
         let tel' = List.map (inferExpr env) tel
         (Cprod(List.map fst tel'), Etuple tel')
     | Ector((Cstruct(id, _) as t), sel) ->
         match env.struct_def.TryGetValue(id) with
-        | false, _ -> raise (TypeError "TODO inferExpr")
+        | false, _ -> raise (FrontendTypeException "TODO inferExpr")
         | true, stl ->
             let init_field (name, t) =
                 match List.tryFind (fun (s, _) -> s = name) sel with
                 | Some(s, e) -> (s, checkExpr env e t)
                 | None -> (name, (t, Edefault t))
             (t, Ector(t, List.map init_field stl))
-    | Ector _ -> raise (TypeError "TODO inferExpr")
+    | Ector _ -> raise (FrontendTypeException "TODO inferExpr")
     | Earray tel ->
         match tel with
         | hd :: tl ->
@@ -164,12 +164,12 @@ and inferExpr (env : Env.env) (_, e) =
             let tl' = List.map (inferExpr env) tl
             List.iter (fun (t', _) -> Typing.equiv env.ctx t t' Ktype) tl'
             (Carray t, Earray(te' :: tl'))
-        | _ -> raise (TypeError "TODO inferExpr")
+        | _ -> raise (FrontendTypeException "TODO inferExpr")
     | Efield(b, (_, Some f)) ->
         let (t, b') as tb' = inferExpr env b
         let lookupField id f =
             match env.struct_def.TryGetValue(id) with
-            | false, _ -> raise (TypeError "TODO inferExpr")
+            | false, _ -> raise (FrontendTypeException "TODO inferExpr")
             | true, stl ->
                 let i = List.findIndex (fun (s, _) -> s = f) stl
                 let (_, t) = List.item i stl
@@ -178,8 +178,8 @@ and inferExpr (env : Env.env) (_, e) =
         | Cstruct(id, _) ->
             let (i, t) = lookupField id f
             (t, Efield(tb', (i, Some f)))
-        | _ -> raise (TypeError "TODO inferExpr")
-    | Efield(_, (_, None)) -> raise (Fatal "TODO inferExpr")
+        | _ -> raise (FrontendTypeException "TODO inferExpr")
+    | Efield(_, (_, None)) -> raise (FrontendFatalException "TODO inferExpr")
     | Edefault ty -> (ty, e)
     // | Eplam(k, t, e') ->
     // let k' = check_kind env k
@@ -204,8 +204,8 @@ let rec checkProg (env : Env.env) = function
         let s =
             match hd with
             | Sexpr _ -> checkStmt env hd
-            | Sblk _ -> raise (Error "TODO checkProg")
-            | Sret _ -> raise (Error "TODO checkProg")
+            | Sblk _ -> raise (FrontendException "TODO checkProg")
+            | Sret _ -> raise (FrontendException "TODO checkProg")
             | Sif _ -> checkStmt env hd
             | Swhile _ -> checkStmt env hd
             | Sdecl(g, (_, Efunc(v, vcl, cr, s))) ->

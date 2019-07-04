@@ -31,7 +31,7 @@ let declType mdl ctx (_, t) =
     match t with
     | Bir_named_struct_type(name, _) ->
         Llvm.llvmNamedStructType ctx name |> ignore
-    | _ -> raise (BackendError "Only named user struct type can be declared.")
+    | _ -> raise (BackendException "Only named user struct type can be declared.")
 
 let defType mdl ctx (_, t) =
     match t with
@@ -39,7 +39,7 @@ let defType mdl ctx (_, t) =
         let s = Llvm.llvmNamedStructType ctx name
         Llvm.llvmStructSetBody
             s (Array.map (genType mdl ctx) !ts) false |> ignore
-    | _ -> raise (BackendError "Only named user struct type can be generated.")
+    | _ -> raise (BackendException "Only named user struct type can be generated.")
 
 let declFunction mdl ctx (env : Dictionary<_, _>) (name, v) =
     let genParam f i (id, _) =
@@ -55,7 +55,7 @@ let declFunction mdl ctx (env : Dictionary<_, _>) (name, v) =
         let f = Llvm.llvmDeclareFunction name ft mdl
         Array.iteri (genParam f) vs
         env.Add(string id, f)
-    | _ -> raise (BackendError "Function value expected for func declaration.")
+    | _ -> raise (BackendException "Function value expected for func declaration.")
 
 let genOp o =
     match o with
@@ -98,7 +98,7 @@ let rec genValue mdl ctx
             | Bir_ret v -> Llvm.llvmBuildRet (gen v) builder
             | Bir_undef t -> Llvm.llvmUndef (genType mdl ctx t)
             | Bir_var(_, name) ->
-                raise (BackendError "Variables should be already generated.")
+                raise (BackendException "Variables should be already generated.")
             | Bir_global_stringptr(s, n) ->
                 Llvm.llvmBuildGlobalStringptr s n builder
             | Bir_cond_br(p, (b0, _, _), (b1, _, _)) ->
@@ -108,7 +108,7 @@ let rec genValue mdl ctx
             | Bir_alloca(t, s) ->
                 Llvm.llvmBuildAlloca (genType mdl ctx t) s builder
             | Bir_function _ ->
-                raise (BackendFatal "Function is not supported in codegen.")
+                raise (BackendFatalException "Function is not supported in codegen.")
             | Bir_global_ref _ -> env.Item(sid)
 
         env.Add(sid, value)
@@ -122,7 +122,7 @@ let genGlobal mdl ctx (env : Dictionary<_, _>) (name, (gid, v)) =
         let g = Llvm.llvmDefineGlobal name (Llvm.llvmUndef (genType mdl ctx t)) mdl
         env.Add(string gid, g)
     | _ ->
-        raise (BackendFatal "global reference")
+        raise (BackendFatalException "global reference")
 
 let declBlock mdl ctx (benv : Dictionary<_, _>) func (name, v, ts) =
     let b = Llvm.llvmAppendBlock ctx name func
@@ -142,7 +142,7 @@ let genFunction mdl ctx (env : Dictionary<_, _>) (_, f) =
         let benv = new Dictionary<string, LLVMSharp.LLVMBasicBlockRef>()
         Array.iter (declBlock mdl ctx benv func) !bs
         Array.iter (genBlock mdl ctx env benv) !bs
-    | _ -> raise (BackendError "Code generation on non-function values.")
+    | _ -> raise (BackendException "Code generation on non-function values.")
 
 let genModule mdl =
     let ctx = Llvm.llvmCreateContext()

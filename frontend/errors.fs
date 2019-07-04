@@ -1,11 +1,11 @@
 module Errors
 
-exception Fatal of string
+exception FrontendFatalException of string
 
-exception Error of string
+exception FrontendException of string
 
-exception TypeError of string
+exception FrontendTypeException of string
 
-exception EquivTypeError of string * string * string
+exception FrontendEquivTypeException of string * string * string
 
-exception SyntaxError of string
+exception FrontendSyntaxException of string

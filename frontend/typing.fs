@@ -29,13 +29,13 @@ and equivPath ctx c0 c1 =
     match (c0, c1) with
     | (Cvar i0, Cvar i1) ->
         if i0 = i1 then Env.lookupKind ctx i0
-        else raise (TypeError "TODO equivPath")
+        else raise (FrontendTypeException "TODO equivPath")
     | (Capp(c0a, c0b), Capp(c1a, c1b)) ->
         (match equivPath ctx c0a c1a with
          | Kpi(kl0, k1) ->
              List.map3 (equiv ctx) c0b c1b kl0 |> ignore
              k1
-         | _ -> raise (TypeError "TODO equivPath"))
+         | _ -> raise (FrontendTypeException "TODO equivPath"))
     | (Carrow(c0a, c0b), Carrow(c1a, c1b)) ->
         List.iter2 (fun a b -> equiv ctx a b Ktype) c0a c1a
         equiv ctx c0b c1b Ktype
@@ -60,16 +60,16 @@ and equivPath ctx c0 c1 =
         Ktype
     | (Cstruct(id0, _), Cstruct(id1, _)) ->
         if id0 = id1 then Env.lookupStruct ctx id0
-        else raise (Error "TODO equivPath")
-    | _ -> raise (EquivTypeError("TODO equivPath", string c0, string c1))
+        else raise (FrontendException "TODO equivPath")
+    | _ -> raise (FrontendEquivTypeException("TODO equivPath", string c0, string c1))
 
 and sameIface ctx i0 i1 =
     match (i0, i1) with
     | (Inamed(id0, _), Inamed(id1, _)) ->
         if id0 = id1 then ()
-        else raise (TypeError "TODO sameIface")
+        else raise (FrontendTypeException "TODO sameIface")
     | (Itop, Itop) -> ()
-    | _ -> raise (TypeError "TODO sameIface")
+    | _ -> raise (FrontendTypeException "TODO sameIface")
 
 and sameKind ctx k0 k1 =
     match (k0, k1) with
@@ -78,7 +78,7 @@ and sameKind ctx k0 k1 =
         List.iter2 (sameKind ctx) k1a k1a
         let ctx' = List.fold (fun e k -> Env.extendKind e k) ctx k1a
         sameKind ctx' k0b k1b
-    | _ -> raise (TypeError "TODO sameKind")
+    | _ -> raise (FrontendTypeException "TODO sameKind")
 
 let rec subKind ctx k0 k1 =
     match (k0, k1) with
@@ -87,7 +87,7 @@ let rec subKind ctx k0 k1 =
         List.iter2 (subKind ctx) k1a k0a
         let ctx' = List.fold (fun e k -> Env.extendKind e k) ctx k1a
         subKind ctx' k0b k1b
-    | _ -> raise (TypeError "TODO subkind")
+    | _ -> raise (FrontendTypeException "TODO subkind")
 
 let rec subType ctx t0 t1 =
     equiv ctx t0 t1 Ktype // FIXME

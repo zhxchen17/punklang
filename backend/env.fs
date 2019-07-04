@@ -23,5 +23,5 @@ let mangleName id = "v" + string id
 
 let lookupStruct env id =
     match env.struct_def.TryGetValue(id) with
-    | false, _ -> raise (BackendError "TODO lookupStruct")
+    | false, _ -> raise (BackendException "TODO lookupStruct")
     | true, stl -> stl

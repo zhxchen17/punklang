@@ -14,9 +14,9 @@ let updateEnv env = function
     | Tstmt_struct((id, Some name), _) when id >= 0 ->
         Env.addId env id name
     | Tstmt_decl((id, _), _, _, _) when id < 0 ->
-        raise (Fatal "TODO resolveProg")
+        raise (FrontendFatalException "TODO resolveProg")
     | Tstmt_struct((id, _), _) when id < 0 ->
-        raise (Fatal "TODO resolveProg")
+        raise (FrontendFatalException "TODO resolveProg")
     | _ -> env
 
 let rec resolveCon env con =
@@ -29,7 +29,7 @@ let rec resolveCon env con =
         assert (i = -1)
         (match Env.tryFindId env x with
          | Some id -> Tcon_named(id, Some x)
-         | None -> raise (Error "TODO resolveCon"))
+         | None -> raise (FrontendException "TODO resolveCon"))
     | Tcon_named a -> Tcon_named a
     | Tcon_app(c0, c1) -> Tcon_app(resolveCon env c0, resolveCon env c1)
     | Tcon_unit -> con
@@ -43,7 +43,7 @@ let rec resolveExpr (env : Env.env) expr =
     match expr with
     | Texpr_var(-1, Some x) ->
         Texpr_var(Map.find x env.var_id_map, Some x)
-    | Texpr_var(_, Some x) -> raise (Fatal "TODO resolveExpr")
+    | Texpr_var(_, Some x) -> raise (FrontendFatalException "TODO resolveExpr")
     | Texpr_op(o, el) -> Texpr_op(o, List.map (resolveExpr env) el)
     | Texpr_func(args, ret, s) ->
         let update_id env ((id, s), _) = valueMap s env (Env.addId env id)
