@@ -1,0 +1,3 @@
+[submodule "runtime/gc/bdwgc"]
+	path = runtime/gc/bdwgc
+	url = https://github.com/ivmai/bdwgc.git
